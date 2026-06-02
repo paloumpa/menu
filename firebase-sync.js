@@ -52,6 +52,13 @@
       try { localStorage.setItem('customMeals', JSON.stringify(d)); } catch(e) {}
       _ref('customMeals').set({ v: JSON.stringify(d) });
     },
+    saveHistorique(entry) {
+      _db.collection('historique').doc(entry.date).set({
+        date:  entry.date,
+        label: entry.label,
+        v:     JSON.stringify(entry.noms)
+      });
+    },
   };
 
   // ── Listeners temps réel ────────────────────────────────────
@@ -101,6 +108,26 @@
     renderPlanning();
     renderResume();
   });
+
+  // Historique — chargement unique (pas de listener temps réel)
+  _db.collection('historique')
+    .orderBy('date', 'desc')
+    .limit(6)
+    .get()
+    .then(snap => {
+      const items = [];
+      snap.forEach(doc => {
+        try {
+          const d = doc.data();
+          items.push({ date: d.date, label: d.label, noms: JSON.parse(d.v || '[]') });
+        } catch(e) {}
+      });
+      if (items.length) {
+        historique = items;
+        typeof renderHistoriqueInfos === 'function' && renderHistoriqueInfos();
+      }
+    })
+    .catch(e => console.warn('[FB] Historique:', e));
 
   console.log('[Firebase] Synchronisation active — famille Cordedda');
 
