@@ -48,6 +48,10 @@
       try { localStorage.setItem('annexeItems', JSON.stringify(d)); } catch(e) {}
       _ref('annexe').set({ v: JSON.stringify(d) });
     },
+    saveCustomMeals(d) {
+      try { localStorage.setItem('customMeals', JSON.stringify(d)); } catch(e) {}
+      _ref('customMeals').set({ v: JSON.stringify(d) });
+    },
   };
 
   // ── Listeners temps réel ────────────────────────────────────
@@ -90,6 +94,12 @@
     annexeItems = v;
     annexeNextId = Math.max(...v.map(i => i.id), 20) + 1;
     renderAnnexe();
+  });
+
+  _listen('customMeals', v => {
+    customMeals = v;
+    renderPlanning();
+    renderResume();
   });
 
   console.log('[Firebase] Synchronisation active — famille Cordedda');
