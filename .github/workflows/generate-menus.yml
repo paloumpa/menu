@@ -1,0 +1,42 @@
+name: Génération menus hebdomadaire
+
+on:
+  workflow_dispatch:
+    inputs:
+      message:
+        description: 'Message de commit'
+        default: 'Menus — génération automatique'
+        required: false
+  schedule:
+    - cron: '0 5 * * 2'   # Chaque mardi à 5h UTC = 7h Paris
+
+jobs:
+  generate:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install requests
+
+      - name: Generate menus
+        env:
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+        run: python generate_menus.py
+
+      - name: Commit menus
+        run: |
+          git config user.name 'GitHub Actions'
+          git config user.email 'actions@github.com'
+          git add menus_data.js
+          git diff --cached --quiet || git commit -m "${{ inputs.message || 'Menus — génération automatique' }}"
+          git push
