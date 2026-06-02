@@ -1,0 +1,1797 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Mes Menus">
+<meta name="theme-color" content="#1B4332">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon.svg">
+<title>Mes Menus — Famille</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+<style>
+:root{--g1:#1B4332;--g2:#2D6A4F;--g3:#40916C;--g4:#74C69D;--g5:#D8F3DC;--g6:#F0FAF3;--amber:#E9C46A;--amber-l:#FFF8E1;--coral:#E76F51;--choc:#3D1A0A;--choc-l:#FDF0E8;--red:#DC2626;--red-l:#FEF2F2;--text:#1A1A1A;--muted:#6B7280;--border:#D1E7DD;--bg:#F4F8F5;--white:#FFFFFF;--r:14px;--rs:8px;--shadow:0 2px 16px rgba(27,67,50,.10);--font:'DM Sans',sans-serif;--mono:'DM Mono',monospace}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;overflow:hidden}
+body{font-family:var(--font);background:var(--bg);color:var(--text);display:flex;flex-direction:column}
+.nav{background:var(--g1);padding:env(safe-area-inset-top,0px) 0 0;flex-shrink:0}
+.nav-top{display:flex;align-items:center;justify-content:space-between;padding:14px 16px 8px}
+.nav-title{font-size:18px;font-weight:700;color:white;letter-spacing:-.5px}
+.nav-sub{font-size:11px;color:rgba(255,255,255,.6);margin-top:1px}
+.nav-tabs{display:flex}
+.nav-tab{flex:1;padding:9px 4px 11px;text-align:center;font-size:11px;font-weight:500;color:rgba(255,255,255,.55);cursor:pointer;border-bottom:2.5px solid transparent;transition:all .2s;font-family:var(--font)}
+.nav-tab.active{color:white;border-bottom-color:var(--amber)}
+.tab-icon{font-size:17px;display:block;margin-bottom:2px}
+.scroll-area{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch}
+.content{padding:14px 14px 32px;display:none}
+.content.active{display:block}
+
+/* WEEK SWITCHER */
+.week-switcher{display:flex;align-items:center;gap:8px;margin-bottom:12px;background:var(--white);border-radius:var(--rs);padding:8px 12px;box-shadow:var(--shadow)}
+.ws-btn{width:32px;height:32px;border:1.5px solid var(--border);border-radius:var(--rs);background:transparent;cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.ws-btn:active{background:var(--g6)}
+.ws-label{flex:1;text-align:center;font-size:13px;font-weight:600;color:var(--g1)}
+.ws-sub{font-size:10px;color:var(--muted);font-weight:400}
+
+/* PERSON TOGGLE */
+.ptoggle{display:flex;gap:6px;margin-bottom:12px}
+.ptog{flex:1;padding:8px;border:1.5px solid var(--border);border-radius:var(--rs);font-size:12px;font-weight:500;cursor:pointer;color:var(--muted);background:var(--white);text-align:center;font-family:var(--font);transition:all .2s}
+.ptog.active{background:var(--g1);color:white;border-color:var(--g1)}
+
+/* STATS */
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:14px}
+.stat{background:var(--white);border-radius:var(--rs);padding:10px 8px;text-align:center;box-shadow:var(--shadow)}
+.stat-n{font-size:20px;font-weight:700;color:var(--g1);font-family:var(--mono)}
+.stat-l{font-size:10px;color:var(--muted);margin-top:1px}
+
+/* WEEK GRID */
+.week-hint{font-size:12px;color:var(--muted);margin-bottom:10px}
+.week-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch;margin:0 -14px;padding:0 14px 6px}
+.week-row{display:flex;gap:8px;width:max-content}
+.day-card{width:152px;background:var(--white);border-radius:var(--r);overflow:hidden;box-shadow:var(--shadow);flex-shrink:0;transition:opacity .2s}
+.day-card.disabled{opacity:.45}
+.day-head{background:var(--g1);color:white;font-size:11px;font-weight:700;padding:7px 10px;display:flex;justify-content:space-between;align-items:center}
+.day-head.disabled-head{background:#9CA3AF}
+.day-toggle{width:20px;height:20px;border-radius:4px;border:2px solid rgba(255,255,255,.5);cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all .2s}
+.day-toggle.on{background:rgba(255,255,255,.25);border-color:white}
+.day-toggle.on::after{content:'✓';color:white;font-size:10px;font-weight:700}
+.day-kcal{font-size:10px;opacity:.75;font-family:var(--mono)}
+.meal-slot{padding:9px 10px;border-bottom:1px solid var(--g6);transition:background .15s;position:relative}
+.meal-slot:last-child{border-bottom:none}
+.meal-slot.disabled-meal{opacity:.4;background:#F9FAFB}
+.meal-slot-inner{cursor:pointer}
+.meal-slot-inner:active{background:var(--g6)}
+.meal-toggle-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:3px}
+.meal-active-btn{width:18px;height:18px;border-radius:4px;border:1.5px solid var(--border);cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;background:white;transition:all .2s}
+.meal-active-btn.on{background:var(--g3);border-color:var(--g3)}
+.meal-active-btn.on::after{content:'✓';color:white;font-size:9px;font-weight:700}
+.mbadge{display:inline-block;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;padding:2px 6px;border-radius:20px}
+.mb-pdj{background:var(--g5);color:var(--g1)}.mb-mid{background:#EAF3DE;color:#27500A}.mb-col{background:var(--choc-l);color:var(--choc)}.mb-din{background:var(--amber-l);color:#856404}.mb-soir{background:var(--choc-l);color:var(--choc)}
+.meal-nm{font-size:11px;font-weight:600;color:var(--text);line-height:1.3;cursor:pointer}
+.meal-tm{font-size:10px;color:var(--muted);margin-top:2px}
+.portions-badge{font-size:9px;padding:1px 5px;border-radius:20px;background:var(--amber-l);color:#856404;font-weight:600;margin-top:2px;display:inline-block}
+
+/* MACRO BAR */
+.macro-bar{height:6px;border-radius:3px;overflow:hidden;display:flex;margin:6px 0 4px}
+.mp{background:#40916C}.mg{background:#E9C46A}.ml{background:#E76F51}
+.macro-leg{display:flex;gap:10px;font-size:10px;color:var(--muted)}
+.mdot{width:7px;height:7px;border-radius:50%;display:inline-block;margin-right:3px;vertical-align:middle}
+
+/* DETAIL SHEET */
+.overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:200;align-items:flex-end}
+.overlay.open{display:flex}
+.sheet{background:var(--white);border-radius:20px 20px 0 0;width:100%;max-height:88vh;overflow-y:auto;padding-bottom:env(safe-area-inset-bottom,16px)}
+.sheet-handle{width:36px;height:4px;background:var(--border);border-radius:2px;margin:12px auto 0}
+.sheet-body{padding:14px 18px 20px}
+.sheet-title{font-size:19px;font-weight:700;margin-bottom:6px;line-height:1.2}
+.sheet-meta{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px}
+.pill{display:inline-block;font-size:11px;padding:4px 10px;border-radius:20px;font-weight:500}
+.pill-g{background:var(--g5);color:var(--g1)}.pill-a{background:var(--amber-l);color:#856404}.pill-m{background:#F3F4F6;color:var(--muted)}
+.macro-detail{background:var(--g6);border-radius:var(--rs);padding:10px 12px;margin-bottom:14px}
+.macro-detail-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:8px}
+.md-box{text-align:center}
+.md-val{font-size:16px;font-weight:700;color:var(--g1);font-family:var(--mono)}
+.md-lbl{font-size:9px;color:var(--muted);margin-top:1px}
+.slabel{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin:12px 0 7px}
+.ing-chips{display:flex;flex-wrap:wrap;gap:5px}
+.ing-chip{font-size:12px;padding:4px 10px;background:var(--g6);border:1px solid var(--border);border-radius:20px;color:var(--text)}
+.steps{display:flex;flex-direction:column;gap:8px}
+.step{display:flex;gap:10px;align-items:flex-start}
+.snum{width:22px;height:22px;border-radius:50%;background:var(--g1);color:white;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px}
+.stxt{font-size:13px;line-height:1.55;padding-top:2px}
+.note-enfants{background:var(--amber-l);border-radius:var(--rs);padding:8px 10px;margin-top:10px;font-size:12px;color:#856404}
+.btn-close{display:block;width:100%;padding:13px;background:var(--g1);color:white;border:none;border-radius:var(--r);font-size:15px;font-weight:600;cursor:pointer;margin-top:16px;font-family:var(--font)}
+
+/* COURSES */
+.courses-week-toggle{display:flex;gap:6px;margin-bottom:12px}
+.cwt{flex:1;padding:7px;border:1.5px solid var(--border);border-radius:var(--rs);font-size:12px;font-weight:500;cursor:pointer;color:var(--muted);background:var(--white);text-align:center;font-family:var(--font)}
+.cwt.active{background:var(--g1);color:white;border-color:var(--g1)}
+.prog-wrap{background:var(--border);border-radius:20px;height:8px;overflow:hidden;margin-bottom:5px}
+.prog-fill{height:100%;background:var(--g3);border-radius:20px;transition:width .3s}
+.prog-lbl{font-size:11px;color:var(--muted);text-align:right;margin-bottom:12px}
+.courses-info{background:var(--amber-l);border-radius:var(--rs);padding:8px 12px;margin-bottom:12px;font-size:12px;color:#856404}
+.cat-block{background:var(--white);border-radius:var(--r);margin-bottom:10px;overflow:hidden;box-shadow:var(--shadow)}
+.cat-hd{padding:9px 12px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--g2);background:var(--g6);display:flex;justify-content:space-between;border-bottom:1px solid var(--border)}
+.course-item{display:flex;align-items:center;gap:10px;padding:10px 12px;border-bottom:1px solid var(--g6);cursor:pointer;-webkit-user-select:none}
+.course-item:last-child{border-bottom:none}
+.course-item:active{background:var(--g6)}
+.ccheck{width:20px;height:20px;border-radius:5px;border:2px solid var(--border);display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all .2s}
+.ccheck.done{background:var(--g3);border-color:var(--g3)}
+.ccheck.done::after{content:'✓';color:white;font-size:12px;font-weight:700}
+.clabel{flex:1}
+.cname{font-size:14px;transition:color .2s}
+.cname.done{text-decoration:line-through;color:var(--muted)}
+.cqty{font-size:11px;color:var(--muted);margin-top:1px}
+.cportion{font-size:10px;font-weight:600;padding:1px 6px;border-radius:20px;margin-top:2px;display:inline-block}
+.cp4{background:var(--amber-l);color:#856404}.cp2{background:var(--g5);color:var(--g1)}
+.disabled-note{font-size:10px;color:var(--red);margin-top:1px}
+
+/* RESUME */
+.wo-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin-bottom:14px}
+.wo-col{background:var(--white);border-radius:var(--rs);padding:6px 3px;text-align:center;box-shadow:var(--shadow)}
+.wo-col.off{opacity:.4}
+.wo-day{font-size:9px;font-weight:700;color:var(--muted);margin-bottom:2px}
+.wo-kcal{font-size:11px;font-weight:700;color:var(--g1);font-family:var(--mono)}
+.wo-bar{height:3px;border-radius:2px;background:var(--g4);margin:3px auto 0;opacity:.6}
+.resume-card{background:var(--white);border-radius:var(--r);padding:14px;box-shadow:var(--shadow)}
+.rc-title{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin-bottom:10px}
+.rc-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:10px}
+.rc-box{background:var(--g6);border-radius:var(--rs);padding:8px;text-align:center}
+.rc-val{font-size:17px;font-weight:700;color:var(--g1);font-family:var(--mono)}
+.rc-lbl{font-size:9px;color:var(--muted);margin-top:1px}
+.deficit-row{background:var(--g5);border-radius:var(--rs);padding:10px 12px;font-size:12px;color:var(--g1);line-height:1.6}
+
+/* INFOS */
+.info-block{background:var(--white);border-radius:var(--r);padding:14px;margin-bottom:10px;box-shadow:var(--shadow)}
+.info-t{font-size:14px;font-weight:700;color:var(--g1);margin-bottom:7px}
+.info-txt{font-size:13px;color:var(--muted);line-height:1.65}
+.hab-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:7px;margin-top:10px}
+.hab-chip{background:var(--g6);border:1px solid var(--border);border-radius:var(--rs);padding:8px 10px}
+.hab-name{font-size:12px;font-weight:600;color:var(--g1);margin-bottom:2px}
+.hab-val{font-size:10px;color:var(--muted)}
+.pref-chip{display:inline-block;background:var(--red-l);border:1px solid #FECACA;border-radius:20px;padding:3px 10px;font-size:12px;color:var(--red);margin:3px 3px 0 0}
+
+.persons-selector{display:flex;flex-direction:column;gap:3px;margin-top:5px}
+.ps-row{display:flex;align-items:center;gap:4px}
+.ps-btn{width:18px;height:18px;border-radius:4px;border:1.5px solid var(--border);background:var(--white);cursor:pointer;font-size:10px;font-weight:700;color:var(--g2);display:flex;align-items:center;justify-content:center;flex-shrink:0;line-height:1}
+.ps-btn:active{background:var(--g5)}
+.ps-btn.adult{border-color:var(--g3);color:var(--g2)}
+.ps-btn.child{border-color:var(--amber);color:#856404}
+.ps-val{font-size:11px;font-weight:700;color:var(--g1);min-width:14px;text-align:center}
+.ps-lbl{font-size:9px;color:var(--muted);min-width:42px}
+.ps-lbl.adult{color:var(--g2)}
+.ps-lbl.child{color:#856404}
+.cout-tab{display:none}.cout-tab.active{display:block}
+.cout-week-toggle{display:flex;gap:6px;margin-bottom:12px}
+.cwtt{flex:1;padding:7px;border:1.5px solid var(--border);border-radius:var(--rs);font-size:12px;font-weight:500;cursor:pointer;color:var(--muted);background:var(--white);text-align:center;font-family:var(--font)}
+.cwtt.active{background:var(--g1);color:white;border-color:var(--g1)}
+.cout-summary{background:var(--white);border-radius:var(--r);padding:14px;box-shadow:var(--shadow);margin-bottom:12px}
+.cout-total{font-size:28px;font-weight:700;color:var(--g1);font-family:var(--mono)}
+.cout-sub{font-size:12px;color:var(--muted);margin-top:2px}
+.cout-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-top:12px}
+.cout-box{background:var(--g6);border-radius:var(--rs);padding:10px;text-align:center}
+.cout-val{font-size:16px;font-weight:700;color:var(--g1);font-family:var(--mono)}
+.cout-lbl{font-size:10px;color:var(--muted);margin-top:2px}
+.prix-block{background:var(--white);border-radius:var(--r);margin-bottom:10px;overflow:hidden;box-shadow:var(--shadow)}
+.prix-hd{padding:9px 12px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--g2);background:var(--g6);display:flex;justify-content:space-between;border-bottom:1px solid var(--border)}
+.prix-item{display:flex;align-items:center;gap:10px;padding:9px 12px;border-bottom:1px solid var(--g6)}
+.prix-item:last-child{border-bottom:none}
+.prix-nom{flex:1;font-size:13px;color:var(--text)}
+.prix-pers{font-size:11px;color:var(--muted);min-width:50px;text-align:center}
+.prix-input-wrap{display:flex;align-items:center;gap:4px}
+.prix-input{width:58px;padding:4px 6px;border:1.5px solid var(--border);border-radius:var(--rs);font-size:13px;font-family:var(--mono);color:var(--g1);background:var(--white);text-align:right}
+.prix-unit{font-size:11px;color:var(--muted)}
+.prix-total-row{display:flex;justify-content:space-between;align-items:center;padding:10px 12px;background:var(--g5);border-radius:0 0 var(--r) var(--r)}
+.prix-total-lbl{font-size:12px;font-weight:600;color:var(--g1)}
+.prix-total-val{font-size:16px;font-weight:700;color:var(--g1);font-family:var(--mono)}
+
+.annexe-section{margin-bottom:14px}
+.annexe-cat-hd{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:var(--g1);color:white;border-radius:var(--r) var(--r) 0 0;font-size:12px;font-weight:700}
+.annexe-items{background:var(--white);border-radius:0 0 var(--r) var(--r);box-shadow:var(--shadow);overflow:hidden}
+.annexe-item{display:flex;align-items:center;gap:10px;padding:10px 12px;border-bottom:1px solid var(--g6);-webkit-user-select:none}
+.annexe-item:last-child{border-bottom:none}
+.annexe-item:active{background:var(--g6)}
+.annexe-check{width:20px;height:20px;border-radius:5px;border:2px solid var(--border);display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all .2s;cursor:pointer}
+.annexe-check.done{background:var(--amber);border-color:var(--amber)}
+.annexe-check.done::after{content:'✓';color:white;font-size:12px;font-weight:700}
+.annexe-label{flex:1;font-size:14px;color:var(--text);cursor:pointer}
+.annexe-label.done{text-decoration:line-through;color:var(--muted)}
+.annexe-del{width:24px;height:24px;border-radius:50%;border:none;background:transparent;cursor:pointer;font-size:16px;color:var(--muted);display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.annexe-del:active{background:var(--red-l);color:var(--red)}
+.annexe-add-row{display:flex;gap:8px;margin-bottom:10px}
+.annexe-add-row input{flex:1}
+.annexe-add-row select{flex:0 0 130px}
+.annexe-add-btn{padding:0 14px;border:0.5px solid var(--border);border-radius:var(--rs);background:var(--g1);color:white;cursor:pointer;font-size:14px;font-weight:600;white-space:nowrap}
+.annexe-toolbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
+.annexe-reset-btn{font-size:12px;color:var(--muted);background:transparent;border:0.5px solid var(--border);border-radius:var(--rs);padding:5px 10px;cursor:pointer}
+.annexe-count{font-size:12px;color:var(--muted)}
+.annexe-prog-wrap{background:var(--border);border-radius:20px;height:6px;overflow:hidden;margin-bottom:12px}
+.annexe-prog-fill{height:100%;background:var(--amber);border-radius:20px;transition:width .3s}
+
+.budget-bar-wrap{margin-bottom:14px;background:var(--white);border-radius:var(--r);padding:12px 14px;box-shadow:var(--shadow)}
+.budget-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+.budget-label{font-size:13px;font-weight:600;color:var(--text)}
+.budget-amount{font-size:16px;font-weight:700;font-family:var(--mono)}
+.budget-amount.ok{color:var(--g2)}.budget-amount.warn{color:var(--amber)}.budget-amount.over{color:var(--red)}
+.budget-bar{height:8px;border-radius:4px;background:var(--border);overflow:hidden}
+.budget-fill{height:100%;border-radius:4px;transition:width .3s,background .3s}
+.budget-fill.ok{background:var(--g3)}.budget-fill.warn{background:var(--amber)}.budget-fill.over{background:var(--red)}
+.budget-sub{font-size:11px;color:var(--muted);margin-top:5px}
+
+.recettes-sheet{display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:300;align-items:flex-end}
+.recettes-sheet.open{display:flex}
+.recettes-panel{background:var(--white);border-radius:20px 20px 0 0;width:100%;max-height:70vh;overflow-y:auto;padding-bottom:env(safe-area-inset-bottom,16px)}
+.recettes-handle{width:36px;height:4px;background:var(--border);border-radius:2px;margin:12px auto 0}
+.recettes-body{padding:14px 18px 20px}
+.recettes-ing-title{font-size:17px;font-weight:700;margin-bottom:4px}
+.recettes-ing-qty{font-size:13px;color:var(--g2);font-weight:500;margin-bottom:14px}
+.recette-line{display:flex;gap:10px;align-items:flex-start;padding:8px 0;border-bottom:1px solid var(--g6)}
+.recette-line:last-child{border-bottom:none}
+.recette-jour{font-size:11px;font-weight:600;color:var(--g2);min-width:70px;padding-top:2px}
+.recette-nom{font-size:13px;color:var(--text);line-height:1.4}
+.recette-moment{font-size:10px;color:var(--muted);margin-top:2px}
+.btn-close-recettes{display:block;width:100%;padding:12px;background:var(--g1);color:white;border:none;border-radius:var(--r);font-size:15px;font-weight:600;cursor:pointer;margin-top:14px;font-family:var(--font)}
+.ing-info-btn{width:18px;height:18px;border-radius:50%;border:1.5px solid var(--border);background:var(--white);cursor:pointer;font-size:10px;font-weight:700;color:var(--muted);display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-left:4px}
+.ing-info-btn:active{background:var(--g5)}
+
+.portions-section{margin-top:14px}
+.portions-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-top:8px}
+.portion-card{background:var(--g6);border-radius:var(--rs);padding:10px 12px}
+.portion-card.elle{background:#EEF4FF;border-left:3px solid #6B8FF0}
+.portion-card.lui{background:#F0FAF3;border-left:3px solid var(--g3)}
+.portion-card.enfant{background:var(--amber-l);border-left:3px solid var(--amber)}
+.portion-who{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px}
+.portion-kcal{font-size:18px;font-weight:700;font-family:var(--mono);color:var(--text)}
+.portion-macros{font-size:11px;color:var(--muted);margin-top:3px}
+.portion-poids{font-size:12px;font-weight:600;color:var(--g2);margin-top:4px}
+.ing-total-section{margin-top:14px}
+.ing-total-item{display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid var(--g6)}
+.ing-total-item:last-child{border-bottom:none}
+.ing-total-nom{font-size:13px;color:var(--text)}
+.ing-total-qty{font-size:13px;font-weight:600;color:var(--g1);font-family:var(--mono)}
+
+.ing-repartition{margin-top:14px}
+.ing-rep-section{margin-bottom:12px}
+.ing-rep-title{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;padding:6px 10px;border-radius:var(--rs);margin-bottom:6px;display:flex;justify-content:space-between;align-items:center}
+.ing-rep-title.total{background:var(--g1);color:white}
+.ing-rep-title.elle{background:#EEF4FF;color:#4A6CF7}
+.ing-rep-title.lui{background:var(--g5);color:var(--g1)}
+.ing-rep-title.enfant{background:var(--amber-l);color:#856404}
+.ing-rep-row{display:flex;justify-content:space-between;align-items:center;padding:5px 10px;border-bottom:1px solid var(--g6);font-size:13px}
+.ing-rep-row:last-child{border-bottom:none}
+.ing-rep-nom{color:var(--text)}
+.ing-rep-qty{font-weight:600;font-family:var(--mono);color:var(--g1)}
+.ing-rep-box{background:var(--white);border-radius:var(--rs);border:1px solid var(--border);overflow:hidden;margin-bottom:8px}
+</style>
+</head>
+<body>
+<nav class="nav">
+  <div class="nav-top">
+    <div><div class="nav-title">Mes Menus</div><div class="nav-sub">Famille · déficit calorique · &lt; 30 min</div></div>
+  </div>
+  <div class="nav-tabs">
+    <div class="nav-tab active" onclick="switchTab('planning')"><span class="tab-icon">📅</span>Planning</div>
+    <div class="nav-tab" onclick="switchTab('courses')"><span class="tab-icon">🛒</span>Courses</div>
+    <div class="nav-tab" onclick="switchTab('resume')"><span class="tab-icon">📊</span>Macros</div>
+    <div class="nav-tab" onclick="switchTab('couts')"><span class="tab-icon">💰</span>Coûts</div>
+    <div class="nav-tab" onclick="switchTab('annexe')"><span class="tab-icon">📝</span>Divers</div>
+    <div class="nav-tab" onclick="switchTab('infos')"><span class="tab-icon">ℹ️</span>Infos</div>
+  </div>
+</nav>
+<div class="scroll-area">
+
+<!-- PLANNING -->
+<div class="content active" id="tab-planning">
+  <div class="week-switcher">
+    <button class="ws-btn" onclick="switchWeek(-1)">‹</button>
+    <div class="ws-label" id="ws-label">Semaine en cours<br><span class="ws-sub" id="ws-sub"></span></div>
+    <button class="ws-btn" onclick="switchWeek(1)">›</button>
+  </div>
+  <div class="stats">
+    <div class="stat"><div class="stat-n" id="s-actifs">—</div><div class="stat-l">repas actifs</div></div>
+    <div class="stat"><div class="stat-n" id="s-kcal">—</div><div class="stat-l">kcal moy.</div></div>
+    <div class="stat"><div class="stat-n" id="s-deficit">—</div><div class="stat-l">déficit/jour</div></div>
+  </div>
+  <p class="week-hint">✓ Activer/désactiver · Appuie sur le nom pour la recette</p>
+  <div class="week-scroll"><div class="week-row" id="week-row"></div></div>
+</div>
+
+<!-- COURSES -->
+<div class="content" id="tab-courses">
+  <div class="courses-week-toggle">
+    <button class="cwt active" onclick="setCourseWeek(0)">Semaine en cours</button>
+    <button class="cwt" onclick="setCourseWeek(1)">Semaine suivante</button>
+  </div>
+  <div class="budget-bar-wrap" id="budget-bar-wrap"></div>
+  <div class="courses-info" id="courses-info"></div>
+  <div class="prog-wrap"><div class="prog-fill" id="prog-fill" style="width:0%"></div></div>
+  <div class="prog-lbl" id="prog-lbl">0 / 0 articles cochés</div>
+  <div id="courses-list"></div>
+</div>
+
+<!-- RESUME -->
+<div class="content" id="tab-resume">
+  <div class="week-switcher" style="margin-bottom:12px">
+    <button class="ws-btn" onclick="switchWeekResume(-1)">‹</button>
+    <div class="ws-label" id="ws-label-resume">Semaine en cours</div>
+    <button class="ws-btn" onclick="switchWeekResume(1)">›</button>
+  </div>
+  <div class="wo-grid" id="wo-grid"></div>
+  <div class="resume-card" id="resume-card"></div>
+</div>
+
+<!-- INFOS -->
+
+<div class="content" id="tab-annexe">
+  <div class="annexe-add-row">
+    <input type="text" id="annexe-input" placeholder="Ajouter un article..." onkeydown="if(event.key==='Enter')addAnnexeItem()" />
+    <select id="annexe-cat-select">
+      <option value="Hygiène & beauté">Hygiène</option>
+      <option value="Entretien maison">Entretien</option>
+      <option value="Papeterie & divers">Divers</option>
+      <option value="Bébé & enfants">Enfants</option>
+      <option value="Pharmacie">Pharmacie</option>
+      <option value="Animaux">Animaux</option>
+    </select>
+    <button class="annexe-add-btn" onclick="addAnnexeItem()">+</button>
+  </div>
+  <div class="annexe-toolbar">
+    <span class="annexe-count" id="annexe-count">0 articles</span>
+    <button class="annexe-reset-btn" onclick="resetAnnexeChecked()">Décocher tout</button>
+  </div>
+  <div class="annexe-prog-wrap"><div class="annexe-prog-fill" id="annexe-prog"></div></div>
+  <div id="annexe-list"></div>
+</div>
+
+<div class="content" id="tab-infos">
+  <div class="info-block">
+    <div class="info-t">Objectifs nutritionnels</div>
+    <div class="info-txt">
+      <strong>Elle :</strong> 1520 kcal/j · P 114g · G 152g · L 51g<br>
+      <strong>Lui :</strong> 1720 kcal/j · P 129g · G 172g · L 57g<br>
+      <strong>Répartition :</strong> 30% protéines / 40% glucides / 30% lipides<br>
+      <strong>Maintenance :</strong> Elle 1700 kcal · Lui 1900 kcal<br>
+      <strong>Déficit :</strong> ~180 kcal/j · ~1260 kcal/sem<br>
+      <strong>Perte estimée :</strong> ~0,16 kg/semaine · ~0,7 kg/mois
+    </div>
+  </div>
+  <div class="info-block">
+    <div class="info-t">Préférences alimentaires</div>
+    <div class="info-txt">
+      <strong>Elle n'aime pas :</strong><br>
+      <span class="pref-chip">🚫 Concombre</span><span class="pref-chip">🚫 Bleu</span><br><br>
+      <strong>Lui n'aime pas :</strong><br>
+      <span class="pref-chip">🚫 Fromage de chèvre</span><span class="pref-chip">🚫 Fromage de brebis</span><span class="pref-chip">🚫 Bleu</span>
+    </div>
+  </div>
+  <div class="info-block">
+    <div class="info-t">Configuration famille</div>
+    <div class="info-txt">
+      <strong>Lun-Ven midi :</strong> 2 adultes (Elle + Lui)<br>
+      <strong>Lun-Ven soir :</strong> 4 personnes (+ 2 enfants &lt;10 ans)<br>
+      <strong>Sam-Dim :</strong> 4 personnes toute la journée<br>
+      Mêmes plats, portions adaptées pour les enfants
+    </div>
+  </div>
+  <div class="info-block">
+    <div class="info-t">Comment utiliser l'appli</div>
+    <div class="info-txt">
+      <strong>Désactiver un repas :</strong> coche la petite case ✓ sur chaque ligne de repas — les ingrédients sont retirés automatiquement des courses.<br><br>
+      <strong>Désactiver un jour entier :</strong> coche la case dans l'en-tête du jour.<br><br>
+      <strong>2 semaines :</strong> navigue avec les flèches ‹ › pour passer d\'une semaine à l'autre.
+    </div>
+  </div>
+  <div class="info-block">
+    <div class="info-t">✅ Checklist mise à jour</div>
+    <div class="info-txt">
+      À faire après chaque upload GitHub :<br><br>
+      <strong>1. Ouverture</strong><br>
+      <span class="pref-chip">☐ Aucune erreur console</span>
+      <span class="pref-chip">☐ Planning visible</span><br><br>
+      <strong>2. Navigation</strong><br>
+      <span class="pref-chip">☐ Planning</span>
+      <span class="pref-chip">☐ Courses</span>
+      <span class="pref-chip">☐ Macros</span>
+      <span class="pref-chip">☐ Coûts</span>
+      <span class="pref-chip">☐ Divers</span>
+      <span class="pref-chip">☐ Infos</span><br><br>
+      <strong>3. Recettes</strong><br>
+      <span class="pref-chip">☐ Ouvrir repas midi (2 pers.)</span>
+      <span class="pref-chip">☐ Ouvrir repas soir (4 pers.)</span>
+      <span class="pref-chip">☐ Total = Elle + Lui + Enfants</span>
+      <span class="pref-chip">☐ Fermeture OK</span><br><br>
+      <strong>4. Courses & Budget</strong><br>
+      <span class="pref-chip">☐ Pas de doublons</span>
+      <span class="pref-chip">☐ Budget entre 50€ et 80€</span>
+      <span class="pref-chip">☐ Cases cochées mémorisées</span><br><br>
+      <strong>5. Mémoire</strong><br>
+      <span class="pref-chip">☐ Changer nb personnes → courses s'adapte</span>
+      <span class="pref-chip">☐ Désactiver repas → retiré des courses</span>
+      <span class="pref-chip">☐ Fermer/rouvrir → tout mémorisé</span><br><br>
+      <strong>6. Cowork (chaque mardi)</strong><br>
+      <span class="pref-chip">☐ Nouveau planning généré</span>
+      <span class="pref-chip">☐ Budget ≤ 80€</span>
+      <span class="pref-chip">☐ Aucun poisson le soir</span>
+      <span class="pref-chip">☐ Repas semaine &lt; 20 min</span>
+    </div>
+  </div>
+  <div class="info-block">
+    <div class="info-t">Aliments habituels intégrés</div>
+    <div class="hab-grid">
+      <div class="hab-chip"><div class="hab-name">Skyr</div><div class="hab-val">~54 kcal/100g · 9g prot.</div></div>
+      <div class="hab-chip"><div class="hab-name">Flocons d'avoine</div><div class="hab-val">~358 kcal/100g · fibres</div></div>
+      <div class="hab-chip"><div class="hab-name">Amandes</div><div class="hab-val">~580 kcal/100g · bons lipides</div></div>
+      <div class="hab-chip"><div class="hab-name">Oeufs</div><div class="hab-val">~143 kcal/100g · 13g prot.</div></div>
+      <div class="hab-chip"><div class="hab-name">Patate douce</div><div class="hab-val">~86 kcal/100g · IG modéré</div></div>
+      <div class="hab-chip"><div class="hab-name">Pois chiches</div><div class="hab-val">~138 kcal/100g · fibres</div></div>
+      <div class="hab-chip"><div class="hab-name">Beurre cacahuète</div><div class="hab-val">~590 kcal/100g · rassasiant</div></div>
+      <div class="hab-chip"><div class="hab-name">Chocolat noir 70%+</div><div class="hab-val">~530 kcal/100g · magnésium</div></div>
+      <div class="hab-chip"><div class="hab-name">Riz complet / basmati</div><div class="hab-val">IG bas à modéré · fibres</div></div>
+      <div class="hab-chip"><div class="hab-name">Pâtes complètes</div><div class="hab-val">IG bas · satiété durable</div></div>
+    </div>
+  </div>
+</div>
+
+
+<div class="content" id="tab-couts">
+  <div class="cout-week-toggle">
+    <button class="cwtt active" onclick="setCoutWeek(0)">Semaine en cours</button>
+    <button class="cwtt" onclick="setCoutWeek(1)">Semaine suivante</button>
+  </div>
+  <div class="cout-summary" id="cout-summary"></div>
+  <div id="cout-list"></div>
+</div>
+
+</div>
+
+
+<div class="recettes-sheet" id="recettes-sheet" onclick="closeRecettesSheet(event)">
+  <div class="recettes-panel" id="recettes-panel">
+    <div class="recettes-handle"></div>
+    <div class="recettes-body" id="recettes-body"></div>
+  </div>
+</div>
+
+<div class="overlay" id="overlay" onclick="closeDetail(event)">
+  <div class="sheet" id="sheet">
+    <div class="sheet-handle"></div>
+    <div class="sheet-body" id="sheet-body"></div>
+  </div>
+</div>
+
+<script src="menus_data.js"></script>
+<script>
+const JOURS=['Lundi','Mardi','Mercredi','Jeudi','Vendredi','Samedi','Dimanche'];
+// fbSync stub — remplacé par firebase-sync.js au chargement
+let fbSync = {
+  saveActiveMeals: d => { try{localStorage.setItem('activeMeals',JSON.stringify(d));}catch(e){} },
+  saveMealPersons: d => { try{localStorage.setItem('mealPersons',JSON.stringify(d));}catch(e){} },
+  saveChecked:     d => { try{localStorage.setItem('coursesChecked',JSON.stringify(d));}catch(e){} },
+  savePrixUser:    d => { try{localStorage.setItem('prixUser',JSON.stringify(d));}catch(e){} },
+  saveAnnexe:      d => { try{localStorage.setItem('annexeItems',JSON.stringify(d));}catch(e){} },
+};
+const TARGETS={f:1520,m:1720};
+const MAINTENANCE={f:1700,m:1900};
+
+// ╔══════════════════════════════════════════════════════════════╗
+// ║         RÈGLES DE CALCUL — NE JAMAIS MODIFIER               ║
+// ╠══════════════════════════════════════════════════════════════╣
+// ║ FICHE RECETTE (showDetail)                                   ║
+// ║   ELLE kcal   = kcal_base × RATIO_ELLE × 2  (2 adultes)     ║
+// ║              = kcal_base                     (1 adulte)      ║
+// ║   LUI  kcal   = kcal_lui  × RATIO_LUI  × 2  (2 adultes)     ║
+// ║              = 0                             (1 adulte)      ║
+// ║   ENFANT kcal = kcal_base × RATIO_ENFANT     (par enfant)    ║
+// ║   TOTAL kcal  = elleKcal + luiKcal + enfKcal × nbEnfants    ║
+// ║   POIDS       = totalPoids × (kcal_personne / totalKcal)     ║
+// ╠══════════════════════════════════════════════════════════════╣
+// ║ LISTE DE COURSES (renderCourses)                             ║
+// ║   FACTEUR     = facteurTablee(nbAdultes, nbEnfants)          ║
+// ║              = nbAdultes + nbEnfants × RATIO_ENFANT          ║
+// ║   QTÉ TOTALE  = qty_base × facteur  (base = 1 adulte)        ║
+// ║   Ex: 130g poulet × 3.2 (2A+2E) = 416g à acheter            ║
+// ╠══════════════════════════════════════════════════════════════╣
+// ║ COÛTS (renderCouts / renderBudget)                           ║
+// ║   PRIX ING    = qty_totale_g / 1000 × prix_kg                ║
+// ║              = nb_pièces × prix_pièce (oeufs, filets)        ║
+// ║   BUDGET %    = total / BUDGET_MAX × 100                     ║
+// ║   SEUIL WARN  = BUDGET_MAX × SEUIL_WARN_BUDGET (0.85)        ║
+// ║   PAR PERS    = total / nb_personnes_moyen_réel              ║
+// ╠══════════════════════════════════════════════════════════════╣
+// ║ MACROS %      = P×4/kcal | G×4/kcal | L×9/kcal              ║
+// ║ ORDRE TOUJOURS : Lui > Elle > Enfant (kcal ET poids)         ║
+// ╠══════════════════════════════════════════════════════════════╣
+// ║ ⚠️  RÈGLES POUR TOUTE MODIFICATION DU CODE :                 ║
+// ║  1. Lire le fichier avant de toucher quoi que ce soit        ║
+// ║  2. Ne modifier QUE ce qui est demandé                       ║
+// ║  3. Ne JAMAIS modifier ces fonctions :                       ║
+// ║     kcalElle / kcalLui / kcalEnfant                         ║
+// ║     macroElle / macroLui / macroEnfant                       ║
+// ║     facteurTablee                                            ║
+// ║  4. Ne JAMAIS modifier sauf demande EXPLICITE :              ║
+// ║     - Constantes RATIO_*, PRIX_*, BUDGET_MAX (80€)           ║
+// ║     - Le tableau prixParKg (prix Leclerc/Intermarché 2024)   ║
+// ║  5. Vérifier avec verif_calculs.py après chaque modif        ║
+// ╚══════════════════════════════════════════════════════════════╝
+
+// ── Constantes figées — source unique de vérité ─────────────
+const RATIO_ELLE          = TARGETS.f / (TARGETS.f + TARGETS.m); // 0.469
+const RATIO_LUI           = TARGETS.m / (TARGETS.f + TARGETS.m); // 0.531
+const RATIO_ENFANT        = 0.6;    // 60% d'un adulte
+const BUDGET_MAX          = 80;     // €/semaine — FIGÉ, ne pas modifier sauf demande explicite
+const MAX_PERSONNES       = 4;      // par repas
+const SEUIL_WARN_BUDGET   = 0.85;   // 85% → couleur ambre
+const SEMAINES_PAR_MOIS   = 4.3;
+const KCAL_PAR_KG         = 7700;   // physiologique
+const PRIX_DEFAUT_ING     = 1.50;   // € si prix inconnu
+const PRIX_OEUF           = 0.30;   // €/pièce
+const PRIX_THON_BOITE     = 1.50;   // €/boîte
+const PRIX_FILET_CABILLAUD= 3.20;   // €/filet
+const PRIX_FILET_SAUMON   = 4.50;   // €/filet
+const PRIX_CUISSE_POULET  = 1.80;   // €/pièce
+const PORTIONS_FAMILLE    = '4 pers.'; // label repas famille
+const IDX_WEEKEND         = 5;      // di >= 5 = sam/dim
+const IDX_DINER           = 3;      // mi === 3
+const IDX_COLLATION_AM    = 2;      // mi === 2
+const IDX_COLLATION_SOIR  = 4;      // mi === 4
+
+function facteurTablee(nbA, nbE){
+  return nbA + nbE * RATIO_ENFANT;
+}
+
+function kcalElle(kcalBase, nbA){
+  return nbA === 1 ? kcalBase : Math.round(kcalBase * RATIO_ELLE * 2);
+}
+
+function kcalLui(kcalLuiBase, nbA){
+  return nbA >= 2 ? Math.round(kcalLuiBase * RATIO_LUI * 2) : 0;
+}
+
+function kcalEnfant(kcalBase){
+  return Math.round(kcalBase * RATIO_ENFANT);
+}
+
+function macroElle(val, nbA){
+  return nbA === 1 ? val : Math.round(val * RATIO_ELLE * 2);
+}
+
+function macroLui(val, nbA){
+  return nbA >= 2 ? Math.round(val * RATIO_LUI * 2) : 0;
+}
+
+function macroEnfant(val){
+  return Math.round(val * RATIO_ENFANT);
+}
+const MB={'Petit-déjeuner':'mb-pdj','Déjeuner':'mb-mid','Collation':'mb-col','Dîner':'mb-din','Collation soir':'mb-soir'};
+
+let person='f', personResume='f';
+let currentWeek=0; // 0=semaine en cours, 1=semaine suivante
+let currentWeekResume=0;
+let courseWeek=0;
+let checked={0:{},1:{}}; // par semaine
+
+// État actif/inactif des repas : activeMeals[semaine][jour][mealIdx] = true/false
+let activeMeals={0:{},1:{}};
+
+// Initialiser tous les repas comme actifs
+function initActiveMeals(){
+  [0,1].forEach(w=>{
+    JOURS.forEach((_,di)=>{
+      activeMeals[w][di]={};
+      [0,1,2,3,4].forEach(mi=>{ activeMeals[w][di][mi]=true; });
+    });
+  });
+}
+initActiveMeals();
+// Charger activeMeals sauvegardés (écrase les valeurs par défaut)
+try{
+  const savedAM = localStorage.getItem('activeMeals');
+  if(savedAM) activeMeals = JSON.parse(savedAM);
+}catch(e){}
+
+let coutWeek = 0;
+
+// Prix estimés en euros (modifiables par l'utilisateur, stockés localement)
+// Prix par kg/L réels Leclerc — utilisés pour calculer le coût
+// basé sur la quantité totale hebdomadaire
+const prixParKg = {
+  // ── PRIX FIGÉS — Leclerc/Intermarché 2024 ────────────────
+  // Viandes (€/kg)
+  'poulet':      11.00,  // blanc poulet
+  'cuisses':      7.50,
+  'boeuf':       16.00,  // boeuf maigre
+  'hache':       11.00,
+  'dinde':        9.00,
+  // Poisson (€/kg)
+  'saumon':      22.00,
+  'cabillaud':   14.00,
+  'thon':         9.50,  // boîte 160g = 1.50€ → 9.37€/kg
+  // Produits laitiers (€/kg ou €/L)
+  'skyr':         4.00,
+  'yaourt':       2.20,
+  'suisse':       3.50,
+  'oeuf':         0.30,  // par pièce
+  'creme':        3.00,
+  'gruyere':     11.00,
+  'parmesan':    20.00,
+  'tahini':       9.00,
+  'lait':         1.20,  // €/L
+  // Féculents (€/kg)
+  'riz':          2.20,
+  'pate':         2.40,
+  'flocon':       1.80,
+  'lentille':     2.20,
+  'pois':         2.00,
+  'farine':       1.00,
+  'quinoa':       7.00,
+  // Légumes (€/kg)
+  'courgette':    2.20,
+  'carotte':      1.20,
+  'poivron':      3.00,
+  'tomate':       2.50,
+  'salade':       2.00,
+  'oignon':       1.00,
+  'ail':          5.00,  // tête ail ~0.50€/100g
+  'champignon':   4.50,
+  'patate douce': 2.20,
+  'epinard':      3.00,
+  'brocoli':      2.50,
+  'haricot':      3.50,
+  'banane':       1.50,
+  'citron':       2.00,
+  'avocat':       3.00,
+  'mais':         3.00,
+  'poireau':      3.00,
+  'courge':       2.50,
+  'pomme de terre': 1.50,
+  // Oléagineux & condiments (€/kg)
+  'amande':      14.00,
+  'noisette':    18.00,
+  'beurre de cacahuete': 7.00,
+  'beurre cacahuete':    7.00,
+  'huile':        6.00,  // €/L huile olive
+  'sauce soja':   5.00,
+  'olive':        8.00,
+  'chocolat':    12.00,
+  'beurre':       7.00,
+  'miel':         8.00,
+  'noix de coco': 8.00,
+  // Fruits (€/kg)
+  'pomme':        2.50,
+  'fruits rouges': 8.00,
+  'mangue':       4.00,
+  'myrtille':    12.00,
+  'framboise':    8.00,
+  'abricot':     12.00,
+  // Pain & autres
+  'pain complet': 4.00,
+  'tortilla':     5.00,
+  // Épices & herbes — prix fixe à l'achat (boîte)
+  'herbe':        1.00,'curry':1.20,'cumin':1.00,'curcuma':1.00,
+  'cannelle':1.00,'paprika':1.00,'vinaigre':0.80,'gingembre':2.00,
+  'basilic':1.00,'persil':1.00,'thym':1.00,'coriandre':1.00,
+  'graines':      8.00,
+  'bouillon':     1.00,
+};
+
+// Garder prixDefaut pour compatibilité avec l'ancienne logique
+const prixDefaut = {
+  'Skyr nature':1.80,'Skyr':1.80,'Yaourt fruits mixé':0.75,'Petit suisse':0.55,
+  'Oeufs':2.20,'Gruyère':0.90,'Parmesan':1.00,'Lait végétal':1.20,'Tahini':1.20,
+  'Blanc poulet':2.80,'Cuisses poulet':2.50,'Poulet rôti':4.50,
+  'Boeuf maigre':3.50,'Boeuf haché maigre':3.20,'Boeuf mijoté':4.00,
+  'Escalopes dinde':2.80,
+  'Filets saumon':3.80,'Filets cabillaud':3.20,'Saumon fumé':3.00,'Thon en boîte':1.50,
+  'Pois chiches':0.65,'Lentilles vertes':0.70,'Riz complet':0.55,'Riz basmati':0.60,
+  'Pâtes complètes':0.95,'Flocons avoine':0.70,'Farine':0.60,'Tortillas complètes':1.00,
+  'Tomates concassées':0.75,'Bouillon légumes':0.50,
+  'Courgette':0.45,'Carotte':0.35,'Poivron':0.70,'Tomates cerises':1.20,
+  'Patate douce':0.80,'Épinards frais':1.50,'Champignons':1.00,'Salade verte':0.70,
+  'Avocats':1.20,'Banane':0.35,'Citron':0.25,'Oignon':0.25,'Ail':0.35,
+  'Haricots verts':0.90,'Brocoli':0.90,'Carottes':0.35,
+  'Amandes':1.20,'Beurre de cacahuète':1.00,'Huile olive':0.70,'Sauce soja':0.50,
+  'Olives noires':0.80,'Basilic':0.70,
+  'Herbes de Provence':0.40,'Curry doux':0.45,'Cumin':0.40,'Curcuma':0.40,
+  'Cannelle':0.40,'Paprika':0.40,
+  'Chocolat noir 70%+':0.80,'Chocolat noir amandes':0.70,
+};
+let prixUser = {...prixDefaut};
+// Charger les prix modifiés par l'utilisateur
+try{ const saved=localStorage.getItem('prixUser'); if(saved) prixUser={...prixDefaut,...JSON.parse(saved)}; }catch(e){}
+
+// Nombre de personnes par repas: mealPersons[semaine][jour][mealIdx] = N
+let mealPersons = {0:{},1:{}};
+
+function initMealPersons(){
+  [0,1].forEach(w=>{
+    JOURS.forEach((_,di)=>{
+      mealPersons[w][di]={};
+      [0,1,2,3,4].forEach(mi=>{
+        const estWeekend = di>=IDX_WEEKEND;
+        const estSoir = mi===IDX_DINER;
+        const estCollation = mi===IDX_COLLATION_AM||mi===IDX_COLLATION_SOIR;
+        // Nouveau format : {a: nbAdultes, e: nbEnfants}
+        if(estCollation){
+          mealPersons[w][di][mi]={a:2,e:0};
+        } else if(estWeekend||estSoir){
+          mealPersons[w][di][mi]={a:2,e:2};
+        } else {
+          mealPersons[w][di][mi]={a:2,e:0};
+        }
+      });
+    });
+  });
+}
+initMealPersons();
+// Charger mealPersons sauvegardés (écrase les valeurs par défaut)
+try{
+  const savedMP = localStorage.getItem('mealPersons');
+  if(savedMP) mealPersons = JSON.parse(savedMP);
+}catch(e){}
+
+function getMealPersons(w,di,mi){
+  const v = mealPersons[w]&&mealPersons[w][di]&&mealPersons[w][di][mi];
+  // Compatibilité ancien format (nombre simple)
+  if(typeof v === 'number') return {a:Math.min(v,2), e:Math.max(0,v-2)};
+  return v || {a:2,e:0};
+}
+
+function getMealNbAdultes(w,di,mi){ return getMealPersons(w,di,mi).a; }
+function getMealNbEnfants(w,di,mi){ return getMealPersons(w,di,mi).e; }
+function getMealNbTotal(w,di,mi){
+  const p=getMealPersons(w,di,mi);
+  return p.a + p.e;
+}
+
+function setMealPersons(w,di,mi,a,e){
+  if(!mealPersons[w]) mealPersons[w]={};
+  if(!mealPersons[w][di]) mealPersons[w][di]={};
+  mealPersons[w][di][mi]={
+    a: Math.max(0, Math.min(MAX_PERSONNES, a)),
+    e: Math.max(0, Math.min(MAX_PERSONNES, e))
+  };
+  // Au moins 1 personne au total
+  if(mealPersons[w][di][mi].a===0 && mealPersons[w][di][mi].e===0){
+    mealPersons[w][di][mi].a=1;
+  }
+  fbSync.saveMealPersons(mealPersons);
+  renderPlanning();
+  renderCourses();
+}
+
+
+// ── UTILITAIRES ───────────────────────────────────────────────
+function getWeekDates(offset){
+  const now=new Date();
+  const day=now.getDay();
+  const monday=new Date(now);
+  monday.setDate(now.getDate()-(day===0?6:day-1)+(offset*7));
+  const sunday=new Date(monday);
+  sunday.setDate(monday.getDate()+6);
+  const fmt=d=>`${d.getDate()}/${d.getMonth()+1}`;
+  return `${fmt(monday)} – ${fmt(sunday)}`;
+}
+
+function isMealActive(w,di,mi){
+  if(!activeMeals[w]) return true;
+  if(!activeMeals[w][di]) return true;
+  return activeMeals[w][di][mi]!==false;
+}
+
+function isDayActive(w,di){
+  if(!activeMeals[w]||!activeMeals[w][di]) return true;
+  return Object.values(activeMeals[w][di]).some(v=>v);
+}
+
+function toggleMeal(w,di,mi){
+  if(!activeMeals[w]) activeMeals[w]={};
+  if(!activeMeals[w][di]) activeMeals[w][di]={0:true,1:true,2:true,3:true,4:true};
+  activeMeals[w][di][mi]=!activeMeals[w][di][mi];
+  fbSync.saveActiveMeals(activeMeals);
+  renderPlanning();
+  renderCourses();
+}
+
+function toggleDay(w,di){
+  if(!activeMeals[w]) activeMeals[w]={};
+  if(!activeMeals[w][di]) activeMeals[w][di]={0:true,1:true,2:true,3:true,4:true};
+  const allActive=Object.values(activeMeals[w][di]).every(v=>v);
+  [0,1,2,3,4].forEach(mi=>{ activeMeals[w][di][mi]=!allActive; });
+  fbSync.saveActiveMeals(activeMeals);
+  renderPlanning();
+  renderCourses();
+}
+
+// ── TABS ─────────────────────────────────────────────────────
+function switchTab(t){
+  document.querySelectorAll('.nav-tab').forEach((el,i)=>el.classList.toggle('active',['planning','courses','resume','couts','annexe','infos'][i]===t));
+  document.querySelectorAll('.content').forEach(el=>el.classList.remove('active'));
+  document.getElementById('tab-'+t).classList.add('active');
+  if(t==='courses') renderCourses();
+  if(t==='resume') renderResume();
+  if(t==='couts') renderCouts();
+  if(t==='annexe') renderAnnexe();
+}
+
+function setPerson(p){person=p;document.querySelectorAll('#tab-planning .ptog').forEach((el,i)=>el.classList.toggle('active',['f','m'][i]===p));renderPlanning();}
+function setPersonResume(p){personResume=p;document.querySelectorAll('#tab-resume .ptog').forEach((el,i)=>el.classList.toggle('active',['f','m'][i]===p));renderResume();}
+function switchWeek(d){currentWeek=Math.max(0,Math.min(1,currentWeek+d));renderPlanning();}
+function switchWeekResume(d){currentWeekResume=Math.max(0,Math.min(1,currentWeekResume+d));renderResume();}
+function setCourseWeek(w){courseWeek=w;document.querySelectorAll('.cwt').forEach((el,i)=>el.classList.toggle('active',i===w));renderCourses();}
+
+// ── PLANNING ─────────────────────────────────────────────────
+function renderPlanning(){
+  const w=currentWeek;
+  const semaine=semaines[w];
+  document.getElementById('ws-label').innerHTML=semaineLabels[w]+'<br><span class="ws-sub">'+getWeekDates(w)+'</span>';
+  const target=TARGETS[person];
+  let totalKcal=0,activeCount=0;
+  semaine.forEach((d,di)=>{
+    d[person].forEach((m,mi)=>{
+      if(isMealActive(w,di,mi)){totalKcal+=m.kcal;activeCount++;}
+    });
+  });
+  const activeDays=semaine.filter((_,di)=>isDayActive(w,di)).length;
+  const avgKcal=activeDays>0?Math.round(totalKcal/activeDays):0;
+  document.getElementById('s-actifs').textContent=activeCount;
+  document.getElementById('s-kcal').textContent=avgKcal||'—';
+  const maintenance=MAINTENANCE[person];
+  document.getElementById('s-deficit').textContent=avgKcal?('-'+(maintenance-avgKcal)+' kcal/j'):'—';
+
+  document.getElementById('week-row').innerHTML=JOURS.map((j,di)=>{
+    const meals=semaine[di][person];
+    const dayOn=isDayActive(w,di);
+    const dayKcal=meals.reduce((s,m,mi)=>isMealActive(w,di,mi)?s+m.kcal:s,0);
+    const allOn=Object.values(activeMeals[w]&&activeMeals[w][di]||{0:true,1:true,2:true,3:true,4:true}).every(v=>v);
+    return `<div class="day-card${dayOn?'':' disabled'}">
+      <div class="day-head${dayOn?'':' disabled-head'}">
+        <div class="day-toggle${allOn?' on':''}" onclick="toggleDay(${w},${di})"></div>
+        <span>${j}</span>
+        <span class="day-kcal">${dayKcal}</span>
+      </div>
+      ${meals.map((m,mi)=>{
+        const on=isMealActive(w,di,mi);
+        return `<div class="meal-slot${on?'':' disabled-meal'}">
+          <div class="meal-toggle-row">
+            <div class="meal-active-btn${on?' on':''}" onclick="toggleMeal(${w},${di},${mi})"></div>
+            <span class="mbadge ${MB[m.moment]||'mb-pdj'}">${m.moment}</span>
+          </div>
+          <div class="meal-nm" onclick="showDetail(${w},${di},${mi})">${m.nom}</div>
+          <div class="meal-tm">${m.kcal} kcal</div>
+          <div class="persons-selector">
+            <div class="ps-row">
+              <button class="ps-btn adult" onclick="event.stopPropagation();setMealPersons(${w},${di},${mi},getMealNbAdultes(${w},${di},${mi})-1,getMealNbEnfants(${w},${di},${mi}))">−</button>
+              <span class="ps-val">${getMealNbAdultes(w,di,mi)}</span>
+              <button class="ps-btn adult" onclick="event.stopPropagation();setMealPersons(${w},${di},${mi},getMealNbAdultes(${w},${di},${mi})+1,getMealNbEnfants(${w},${di},${mi}))">+</button>
+              <span class="ps-lbl adult">👤 adultes</span>
+            </div>
+            <div class="ps-row">
+              <button class="ps-btn child" onclick="event.stopPropagation();setMealPersons(${w},${di},${mi},getMealNbAdultes(${w},${di},${mi}),getMealNbEnfants(${w},${di},${mi})-1)">−</button>
+              <span class="ps-val">${getMealNbEnfants(w,di,mi)}</span>
+              <button class="ps-btn child" onclick="event.stopPropagation();setMealPersons(${w},${di},${mi},getMealNbAdultes(${w},${di},${mi}),getMealNbEnfants(${w},${di},${mi})+1)">+</button>
+              <span class="ps-lbl child">👶 enfants</span>
+            </div>
+          </div>
+        </div>`;
+      }).join('')}
+    </div>`;
+  }).join('');
+}
+
+// ── DETAIL ───────────────────────────────────────────────────
+function calcPortions(m, nbPersons){
+  // Les macros du repas sont pour 1 adulte (base recette)
+  // On calcule le total pour toute la tablée puis on répartit
+  const est4 = m.portions === PORTIONS_FAMILLE;
+  const nbAdultes = 2; // toujours 2 adultes
+  const nbEnfants = est4 ? 2 : 0;
+
+  // Ratio de répartition entre adultes basé sur objectifs caloriques
+  const ratioElle = 1520 / (1520 + 1720); // ~0.469
+  const ratioLui  = 1720 / (1520 + 1720); // ~0.531
+  const ratioEnfantC = 0.6; // 60% d\'un adulte moyen
+
+  // Total de la tablée = (macros × 2 adultes) + (enfants × 60%)
+  // Les macros du repas sont pour 1 adulte → ×2 pour les 2 adultes
+  const totalKcal = Math.round(m.kcal * (nbAdultes + nbEnfants * ratioEnfantC));
+  const totalP    = Math.round(m.p    * (nbAdultes + nbEnfants * ratioEnfantC));
+  const totalG    = Math.round(m.g    * (nbAdultes + nbEnfants * ratioEnfantC));
+  const totalL    = Math.round(m.l    * (nbAdultes + nbEnfants * ratioEnfantC));
+
+  // Portion adulte moyenne = total / (2 + nbEnfants*0.6)
+  const diviseur = nbAdultes + nbEnfants * ratioEnfantC;
+
+  // Portions individuelles = part du total
+  const elleKcal = Math.round(totalKcal * ratioElle * nbAdultes / diviseur);
+  const luiKcal  = Math.round(totalKcal * ratioLui  * nbAdultes / diviseur);
+  const enfKcal  = nbEnfants > 0 ? Math.round(m.kcal * ratioEnfantC) : 0;
+
+  const elleP = Math.round(totalP * ratioElle * nbAdultes / diviseur);
+  const luiP  = Math.round(totalP * ratioLui  * nbAdultes / diviseur);
+  const elleG = Math.round(totalG * ratioElle * nbAdultes / diviseur);
+  const luiG  = Math.round(totalG * ratioLui  * nbAdultes / diviseur);
+  const elleL = Math.round(totalL * ratioElle * nbAdultes / diviseur);
+  const luiL  = Math.round(totalL * ratioLui  * nbAdultes / diviseur);
+
+  // Vérification : elleKcal + luiKcal + enfKcal*nbEnfants ≈ totalKcal ✓
+
+  // Poids assiette calculé depuis le total réel des ingrédients
+  // On passe le total des ingrédients en paramètre depuis buildIngredientsTotal
+  // Pour l'instant on retourne -1, le vrai poids sera calculé après
+  const ellePoids = -1;
+  const luiPoids  = -1;
+  const enfPoids  = -1;
+
+  return {
+    elleKcal,luiKcal,enfKcal,
+    elleP,luiP,elleG,luiG,elleL,luiL,
+    ellePoids,luiPoids,enfPoids,
+    ratioElle,ratioLui,ratioEnfantC,diviseur,
+    nbEnfants,totalKcal,totalP,totalG,totalL
+  };
+}
+
+function buildIngredientsTotal(m, nbPersons){
+  // Les ingrédients sont pour 1 adulte (base recette)
+  // On calcule pour toute la tablée selon le nombre réel de personnes
+  const est4 = m.portions === PORTIONS_FAMILLE;
+
+  // Décomposer nbPersons en adultes + enfants
+  // Convention : si repas 4 pers. → 2 adultes + 2 enfants
+  //              si repas 2 adultes → nbPersons adultes
+  //              si nbPersons personnalisé :
+  //                - repas "4 pers." avec 3 → 2 adultes + 1 enfant
+  //                - repas "2 adultes" avec 1 → 1 adulte
+  // Utiliser les vrais nb adultes/enfants depuis mealPersons
+  const nbAdultes = (typeof nbPersons === 'object') ? nbPersons.a : Math.min(2, nbPersons);
+  const nbEnfants = (typeof nbPersons === 'object') ? nbPersons.e : 0;
+  // Facteur tablée — utilise la fonction figée
+  const facteur = facteurTablee(nbAdultes, nbEnfants);
+
+  return m.ings.map(ing => {
+    const parsed = parseIng(ing);
+    let qtyTotale = '';
+    if(parsed.qty > 0){
+      // Quantité en grammes/ml
+      const total = Math.ceil(parsed.qty * facteur);
+      qtyTotale = `${total}${parsed.unit||'g'}`;
+    } else {
+      // Essayer de parser les pièces (oeufs, filets, etc.)
+      const pieceMatch = parsed.raw.match(/(\d+)\s*pièces?/i);
+      if(pieceMatch){
+        const total = Math.ceil(parseInt(pieceMatch[1]) * facteur);
+        qtyTotale = `${total}pièces`;
+      }
+    }
+    return {nom: parsed.nom || ing, qty: qtyTotale, raw: parsed.raw};
+  });
+}
+
+function showDetail(w,di,mi){
+  // Toujours utiliser 'f' comme base (macros Elle) mais afficher les deux
+  const m=semaines[w][di]['f'][mi];
+  const mLui=semaines[w][di]['m'][mi];
+  const persObj = getMealPersons(w,di,mi);
+  const nbPersons = persObj; // objet {a, e}
+  const est4 = m.portions === PORTIONS_FAMILLE;
+
+  // Quantités totales pour cuisiner (toujours depuis 'f', indépendant de la personne)
+  const ingsTotal = buildIngredientsTotal(m, nbPersons);
+
+  // Ratios de répartition (basés sur objectifs caloriques)
+  // Ratios depuis constantes globales figées
+  const rE   = RATIO_ELLE;
+  const rL   = RATIO_LUI;
+  const rEnf = RATIO_ENFANT;
+  const nbAdultes = (typeof nbPersons === 'object') ? nbPersons.a : Math.min(2, nbPersons);
+  const nbEnfants = (typeof nbPersons === 'object') ? nbPersons.e : (est4 ? Math.max(0,nbPersons-2) : 0);
+  const div = nbAdultes + nbEnfants * rEnf;
+
+  // Portions — utilise les fonctions figées
+  const elleKcal = kcalElle(m.kcal, nbAdultes);
+  const elleP    = macroElle(m.p, nbAdultes);
+  const elleG    = macroElle(m.g, nbAdultes);
+  const elleL    = macroElle(m.l, nbAdultes);
+
+  const luiKcal  = kcalLui(mLui.kcal, nbAdultes);
+  const luiP     = macroLui(mLui.p, nbAdultes);
+  const luiG     = macroLui(mLui.g, nbAdultes);
+  const luiL     = macroLui(mLui.l, nbAdultes);
+
+  const enfKcal  = nbEnfants > 0 ? kcalEnfant(m.kcal) : 0;
+  const enfP     = nbEnfants > 0 ? macroEnfant(m.p) : 0;
+  const enfG     = nbEnfants > 0 ? macroEnfant(m.g) : 0;
+  const enfL     = nbEnfants > 0 ? macroEnfant(m.l) : 0;
+
+  // Total = somme réelle des assiettes (pas estimation depuis Elle seule)
+  const totalKcal = elleKcal + luiKcal + enfKcal * nbEnfants;
+  const totalP    = elleP    + luiP    + enfP    * nbEnfants;
+  const totalG    = elleG    + luiG    + enfG    * nbEnfants;
+  const totalL    = elleL    + luiL    + enfL    * nbEnfants;
+
+  // Poids total ingrédients
+  let totalPoidsG = 0;
+  ingsTotal.forEach(it => {
+    const match = it.qty.match(/^(\d+)g$/);
+    if(match) totalPoidsG += parseInt(match[1]);
+  });
+
+  // Poids par assiette — calculé APRÈS les fractions (fE_reel etc.)
+  // Note: fE_reel/fL_reel/fEnf_reel définis juste après
+  // On utilise les mêmes fractions que pour les ingrédients
+
+  // Fractions de répartition des ingrédients
+  // Basées sur les ratios caloriques objectifs, pas sur les kcal calculés
+  // 2 adultes : Elle=rE, Lui=rL → Elle+Lui = 1.0 ✅
+  // 4 pers.   : Elle=rE*2/div, Lui=rL*2/div, Enf=0.6/div → somme=1.0 ✅
+  const divFact = facteurTablee(nbAdultes, nbEnfants);
+  // Fractions pour répartir les ingrédients proportionnellement
+  const fE_reel   = nbAdultes === 1 && nbEnfants === 0 ? 1.0
+                  : nbAdultes > 0 ? RATIO_ELLE * nbAdultes / divFact : 0;
+  const fL_reel   = nbAdultes > 1 ? RATIO_LUI * nbAdultes / divFact : 0;
+  const fEnf_reel = nbEnfants > 0 ? RATIO_ENFANT / divFact : 0;
+
+  // Poids par assiette basé sur les fractions réelles
+  const ellePoids = totalPoidsG > 0 ? Math.round(totalPoidsG * fE_reel) : 0;
+  const luiPoids  = totalPoidsG > 0 ? Math.round(totalPoidsG * fL_reel) : 0;
+  const enfPoids  = totalPoidsG > 0 && nbEnfants > 0 ? Math.round(totalPoidsG * fEnf_reel) : 0;
+
+  const portionsElle = {
+    ratioElle:  fE_reel,
+    ratioLui:   fL_reel,
+    ratioEnfant:fEnf_reel,
+    diviseur:1,
+    elleKcal, luiKcal, enfKcal:enfKcal,
+    elleP, elleG, elleL,
+    totalKcal, totalP, totalG, totalL
+  };
+
+  // Répartition ingrédients par personne
+  function repartirIngs(ratio){
+    return ingsTotal.map(it=>{
+      // Quantité en grammes ou ml
+      const qtyMatch = it.qty.match(/^(\d+)(g|ml)$/);
+      if(qtyMatch){
+        const qtyVal = parseInt(qtyMatch[1]);
+        const unit = qtyMatch[2];
+        const result = Math.round(qtyVal * ratio);
+        return {nom:it.nom, qty: result > 0 ? result+unit : 'q.s.'};
+      }
+      // Quantité en pièces (ex: "6pièce")
+      const pieceMatch = it.qty.match(/^(\d+)pièces?$/i);
+      if(pieceMatch){
+        const nb = parseInt(pieceMatch[1]);
+        const result = Math.max(1, Math.round(nb * ratio));
+        return {nom:it.nom, qty: result + (result > 1 ? ' pièces' : ' pièce')};
+      }
+      // Pas de quantité parseable
+      return {nom:it.nom, qty:it.qty||'q.s.'};
+    });
+  }
+
+  // Fractions directes depuis portionsElle (déjà calculées)
+  const ingsElle = repartirIngs(portionsElle.ratioElle);
+  const ingsLui  = repartirIngs(portionsElle.ratioLui);
+  const ingsEnf  = nbEnfants > 0 ? repartirIngs(portionsElle.ratioEnfant) : [];
+
+  function renderIngSection(title, cssClass, kcal, macros, ings, poids){
+    return `<div class="ing-rep-section">
+      <div class="ing-rep-title ${cssClass}">
+        <span>${title}</span>
+        <span>${kcal} kcal${poids?' · ~'+poids+'g':''}</span>
+      </div>
+      <div class="ing-rep-box">
+        ${ings.map(it=>`<div class="ing-rep-row">
+          <span class="ing-rep-nom">${it.nom}</span>
+          <span class="ing-rep-qty">${it.qty}</span>
+        </div>`).join('')}
+      </div>
+      <div style="font-size:11px;color:var(--muted);padding:0 4px;margin-top:-4px;margin-bottom:4px">
+        P ${macros.p}g · G ${macros.g}g · L ${macros.l}g
+      </div>
+    </div>`;
+  }
+
+  document.getElementById('sheet-body').innerHTML=`
+    <div class="sheet-title">${m.nom}</div>
+    <div class="sheet-meta">
+      <span class="pill pill-g">${m.moment}</span>
+      <span class="pill pill-a">${JOURS[di]} · S${w+1}</span>
+      <span class="pill pill-m">${m.portions}</span>
+    </div>
+
+    <div class="slabel">Quantités totales — ${nbAdultes} adulte${nbAdultes>1?'s':''} + ${nbEnfants} enfant${nbEnfants>1?'s':''}</div>
+    <div class="ing-rep-section">
+      <div class="ing-rep-title total">
+        <span>🍳 Pour cuisiner</span>
+        <span>${portionsElle.totalKcal} kcal total</span>
+      </div>
+      <div class="ing-rep-box">
+        ${ingsTotal.map(it=>`<div class="ing-rep-row">
+          <span class="ing-rep-nom">${it.nom}</span>
+          <span class="ing-rep-qty">${it.qty||'q.s.'}</span>
+        </div>`).join('')}
+      </div>
+    </div>
+
+    <div class="slabel">Répartition par assiette</div>
+    ${renderIngSection('Elle','elle',elleKcal,{p:elleP,g:elleG,l:elleL},ingsElle,ellePoids)}
+    ${nbAdultes >= 2 ? renderIngSection('Lui','lui',luiKcal,{p:luiP,g:luiG,l:luiL},ingsLui,luiPoids) : ''}
+    ${nbEnfants > 0 ? renderIngSection('Enfant (×'+nbEnfants+')','enfant',enfKcal,{p:enfP,g:enfG,l:enfL},ingsEnf,enfPoids) : ''}
+
+    <div class="slabel">Préparation</div>
+    <div class="steps">${m.steps.map((s,i)=>`<div class="step"><div class="snum">${i+1}</div><div class="stxt">${s}</div></div>`).join('')}</div>
+    ${m.note?`<div class="note-enfants">👶 ${m.note}</div>`:''}
+    <button class="btn-close" onclick="closeDetail()">Fermer</button>`;
+  document.getElementById('overlay').classList.add('open');
+  document.body.style.overflow='hidden';
+}
+
+function closeDetail(e){
+  if(e&&document.getElementById('sheet').contains(e.target)) return;
+  document.getElementById('overlay').classList.remove('open');
+  document.body.style.overflow='';
+}
+
+// ── COURSES ──────────────────────────────────────────────────
+// ── Parsing ingrédient : extraire nom de base + quantité + unité ──
+function parseIng(ing){
+  const raw = ing.split('\n')[0].trim();
+  // Extraire quantité et unité
+  const qMatch = raw.match(/(\d+[\d,.]*)\s*(g|kg|ml|l|cl|pièces?|boîtes?|sachets?|tranches?|gousses?|pots?|bouteilles?|plaquettes?)?/i);
+  let qty = 0, unit = '';
+  if(qMatch){
+    qty = parseFloat(qMatch[1].replace(',','.')) || 0;
+    unit = (qMatch[2]||'').toLowerCase().replace(/s$/,'');
+  }
+  // Normaliser unités
+  if(unit==='kg') { qty*=1000; unit='g'; }
+  if(unit==='l')  { qty*=100;  unit='cl'; }
+  // Nom de base = texte sans chiffres et unités
+  const nom = raw
+    .replace(/(\d+[\d,.]*\s*(g|kg|ml|l|cl|pièces?|boîtes?|sachets?|tranches?|gousses?|pots?|bouteilles?|plaquettes?|cru|min|c\.à\.c)?)/gi,'')
+    .replace(/x\d+/gi,'').replace(/\s+/g,' ').trim()
+    .replace(/^[•\-]\s*/,'');
+  return {nom, qty, unit, raw};
+}
+
+function normalizeIngKey(nom){
+  return nom.toLowerCase()
+    // Supprimer "x 2", "x2", "x 4" etc.
+    .replace(/\bx\s*\d+\b/g,'')
+    // Supprimer qualificatifs de cuisson/état/texture
+    .replace(/\b(cuit|cuits|cuite|cuites|cru|crus|crude|crues|dur|durs|dure|dures|rôti|rôtis|rôtie|rôties|grillé|grillés|grillée|grillées|fumé|fumés|fumée|fumées|vapeur|poêlé|poêlés|poêlée|poêlées|mijoté|mijotés|mijotée|mijotées|haché|hachés|hachée|hachées|râpé|râpés|râpée|râpées|effilé|effilés|effilée|effilées|entier|entiers|entière|entières|frais|fraîche|fraîches|séché|séchés|séchée|séchées|confit|confits|confite|confites|mixé|mixés|mixée|mixées|nature|légère|léger|doux|douce|complet|complète|basmati|maigre|mince|sans|morceaux|végétal|végétale|corail|fumée|noire|noir|verte|vert|rouge|effilées?)\b/g,'')
+    // Supprimer "+ citron", "+ vinaigre", "à la", "de", etc.
+    .replace(/[+&].*$/,'')
+    .replace(/\b(à|au|aux|de|du|des|la|le|les|avec|et)\b/g,' ')
+    // Supprimer les chiffres isolés en fin
+    .replace(/\s+\d+$/,'')
+    // Fusionner variantes communes
+    .replace(/tomates? cerise.*/,'tomate cerise')
+    .replace(/tomates? concassée.*/,'tomate concassee')
+    .replace(/yaourt.*/,'yaourt')
+    .replace(/beurre.?cacahuète.*/,'beurre cacahuete')
+    .replace(/beurre.?cacahuete.*/,'beurre cacahuete')
+    .replace(/huile.?olive.*/,'huile olive')
+    .replace(/ail.*/,'ail')
+    .replace(/herbes?.*/,'herbes')
+    .replace(/cumin.*/,'cumin')
+    .replace(/lentilles?.*/,'lentille')
+    .replace(/pois.chiches?.*/,'pois chiche')
+    .replace(/amandes?.effilées?.*/,'amande')
+    .replace(/amandes?.*/,'amande')
+    .replace(/flocons?.*/,'flocons avoine')
+    .replace(/pâtes?.complètes?.*/,'pates completes')
+    .replace(/riz.complet.*/,'riz complet')
+    .replace(/riz.basmati.*/,'riz basmati')
+    .replace(/épinards?.*/,'epinard')
+    .replace(/carottes?.*/,'carotte')
+    .replace(/courgettes?.*/,'courgette')
+    .replace(/champignons?.*/,'champignon')
+    .replace(/oignons?.*/,'oignon')
+    .replace(/citrons?.*/,'citron')
+    .replace(/s$/,'')
+    .replace(/\s+/g,' ').trim();
+}
+
+function renderCourses(){
+  const w=courseWeek;
+  const semaine=semaines[w];
+  const disabledCount=JOURS.reduce((s,_,di)=>{
+    return s+semaine[di]['f'].filter((_,mi)=>!isMealActive(w,di,mi)).length;
+  },0);
+
+  document.getElementById('courses-info').innerHTML=
+    `📅 ${semaineLabels[w]} (${getWeekDates(w)})`+
+    (disabledCount>0?` · <strong>${disabledCount} repas désactivés</strong> retirés des courses`:'· Tous les repas actifs');
+
+  // Collecter et REGROUPER les ingrédients par nom de base
+  const ingMap={};
+  // On utilise seulement 'f' pour éviter les doublons Elle/Lui (mêmes ingrédients)
+  JOURS.forEach((_,di)=>{
+    semaine[di]['f'].forEach((m,mi)=>{
+      if(!isMealActive(w,di,mi)) return;
+      const p4=m.portions === PORTIONS_FAMILLE;
+      const persC = getMealPersons(w,di,mi); // toujours {a, e}
+        const nbAdultesC2 = persC.a;
+        const nbEnfantsC2 = persC.e;
+        const nbP = nbAdultesC2 + nbEnfantsC2;
+      m.ings.forEach(ing=>{
+        const parsed = parseIng(ing);
+        if(parsed.nom.length<2) return;
+        const key = normalizeIngKey(parsed.nom);
+        if(!ingMap[key]){
+          ingMap[key]={
+            nom: parsed.nom,
+            totalQty: 0,
+            totalPieces: 0,
+            unit: parsed.unit,
+            portions4: false,
+            maxPersons: nbP,
+            rawList: []
+          };
+        }
+        // Facteur : base 1 adulte → toute la tablée
+        const facteurTotal = facteurTablee(nbAdultesC2, nbEnfantsC2);
+        if(parsed.qty > 0){
+          ingMap[key].totalQty += parsed.qty * facteurTotal;
+        }
+        // Compter les pièces (oeufs, filets, etc.)
+        const piecesMatch = parsed.raw.match(/(\d+)\s*pièces?/i);
+        if(piecesMatch){
+          ingMap[key].totalPieces += parseInt(piecesMatch[1]) * facteurTotal;
+        }
+        // Badge famille si enfants présents dans le sélecteur
+        if(nbEnfantsC2 > 0) ingMap[key].portions4=true;
+        ingMap[key].maxPersons = Math.max(ingMap[key].maxPersons, nbP);
+        ingMap[key].rawList.push(parsed.raw);
+      });
+    });
+  });
+
+  // Grouper par catégorie
+  const cats={
+    'Viandes & poissons':[],'Fruits & légumes':[],'Produits laitiers & oeufs':[],
+    'Épicerie & féculents':[],'Oléagineux & condiments':[],'Épices & aromates':[],'Plaisir — adultes':[]
+  };
+  const catKw={
+    'Viandes & poissons':['poulet','boeuf','saumon','cabillaud','thon','dinde','jambon','viande'],
+    'Fruits & légumes':['courgette','carotte','poivron','épinard','brocoli','tomate','salade','oignon','ail','champignon','patate','avocat','banane','citron','haricot','poireau'],
+    'Produits laitiers & oeufs':['oeuf','skyr','yaourt','petit suisse','parmesan','gruyère','tahini','lait'],
+    'Épicerie & féculents':['riz','pâtes','flocon','pois chiche','lentille','tortilla','bouillon','farine','tomates concassées'],
+    'Oléagineux & condiments':['amande','beurre de cacahuète','huile','sauce soja','basilic'],
+    'Épices & aromates':['curry','cumin','curcuma','paprika','cannelle','herbe','épice'],
+    'Plaisir — adultes':['chocolat'],
+  };
+
+  Object.entries(ingMap).forEach(([key,data])=>{
+    const low=data.nom.toLowerCase();
+    let placed=false;
+    for(const [cat,kws] of Object.entries(catKw)){
+      if(kws.some(k=>low.includes(k))){cats[cat].push({key,data});placed=true;break;}
+    }
+    if(!placed) cats['Épicerie & féculents'].push({key,data});
+  });
+
+  const total=Object.values(cats).reduce((s,arr)=>s+arr.length,0);
+  const done=Object.values(checked[w]||{}).filter(Boolean).length;
+  const pct=total?Math.round(done/total*100):0;
+  // Calculer le coût total pour le budget avec prix réels
+  let totalCout = 0;
+  Object.entries(ingMap).forEach(([key,data])=>{
+    const qtyGb = data.unit === 'g' || data.unit === '' ? data.totalQty : 0;
+    const prix = Math.max(0.10, getPrixReel(data.nom, qtyGb, data.totalPieces||0));
+    totalCout += prix;
+  });
+  renderBudget(Math.round(totalCout * 100) / 100);
+  // Mettre à jour le label de courses-info avec les vrais nombres
+  // (déjà géré plus haut)
+
+  document.getElementById('prog-fill').style.width=pct+'%';
+  document.getElementById('prog-lbl').textContent=`${done} / ${total} articles cochés`;
+
+  document.getElementById('courses-list').innerHTML=Object.entries(cats).filter(([,arr])=>arr.length>0).map(([cat,arr])=>{
+    const cd=arr.filter(it=>(checked[w]||{})[it.key]).length;
+    return `<div class="cat-block">
+      <div class="cat-hd"><span>${cat}</span><span>${cd}/${arr.length}</span></div>
+      ${arr.map(it=>{
+        const d=!!((checked[w]||{})[it.key]);
+        const p4=it.data.portions4;
+        const qtyStr = it.data.totalQty>0
+          ? `${Math.ceil(it.data.totalQty)}${it.data.unit||''}`
+          : '';
+        const recettesMap = buildIngRecettesMap(w);
+        const recettes = recettesMap[it.key]||[];
+        const recettesJson = JSON.stringify(recettes).replace(/'/g,"\\'").replace(/"/g,'&quot;');
+        return `<div class="course-item" onclick="toggleCourse(${w},'${it.key.replace(/'/g,"\\'")}')">
+          <div class="ccheck${d?' done':''}"></div>
+          <div class="clabel">
+            <div class="cname${d?' done':''}" style="display:flex;align-items:center;gap:4px">
+              ${it.data.nom}${qtyStr?' <span style=\"font-weight:500;color:var(--g2)\">— '+qtyStr+'</span>':''}
+              ${recettes.length>0?`<button class=\"ing-info-btn\" onclick=\"event.stopPropagation();showRecettesForIng('${it.data.nom}','${qtyStr}',JSON.parse(decodeURIComponent('${encodeURIComponent(JSON.stringify(recettes))}')))\">?</button>`:''}
+            </div>
+            <span class="cportion ${p4?'cp4':'cp2'}">${p4?'👨‍👩‍👧‍👦 4 pers.':'2 adultes'}</span>
+          </div>
+        </div>`;
+      }).join('')}
+    </div>`;
+  }).join('');
+}
+
+function toggleCourse(w,key){
+  if(!checked[w]) checked[w]={};
+  checked[w][key]=!checked[w][key];
+  saveChecked();
+  renderCourses();
+}
+
+function saveChecked(){
+  fbSync.saveChecked(checked);
+}
+
+function loadChecked(){
+  try{
+    const saved = localStorage.getItem('coursesChecked');
+    if(saved) checked = JSON.parse(saved);
+  }catch(e){}
+}
+
+// ── RESUME ────────────────────────────────────────────────────
+function renderResume(){
+  const w=currentWeekResume;
+  const p=personResume;
+  const semaine=semaines[w];
+  const target=TARGETS[p];
+  document.getElementById('ws-label-resume').textContent=semaineLabels[w];
+
+  const wd=semaine.map((d,di)=>({
+    j:JOURS[di],
+    k:d[p].reduce((s,m,mi)=>isMealActive(w,di,mi)?s+m.kcal:s,0),
+    pt:d[p].reduce((s,m,mi)=>isMealActive(w,di,mi)?s+m.p:s,0),
+    g:d[p].reduce((s,m,mi)=>isMealActive(w,di,mi)?s+m.g:s,0),
+    l:d[p].reduce((s,m,mi)=>isMealActive(w,di,mi)?s+m.l:s,0),
+    active:isDayActive(w,di)
+  }));
+
+  const mk=Math.max(...wd.map(d=>d.k),1);
+  document.getElementById('wo-grid').innerHTML=wd.map(d=>`
+    <div class="wo-col${d.active?'':' off'}">
+      <div class="wo-day">${d.j.slice(0,3)}</div>
+      <div class="wo-kcal">${d.k}</div>
+      <div class="wo-bar" style="width:${Math.round(d.k/mk*100)}%;max-width:100%"></div>
+    </div>`).join('');
+
+  const activeDays=wd.filter(d=>d.active&&d.k>0);
+  const ak=activeDays.length?Math.round(activeDays.reduce((s,d)=>s+d.k,0)/activeDays.length):0;
+  const ap=activeDays.length?Math.round(activeDays.reduce((s,d)=>s+d.pt,0)/activeDays.length):0;
+  const ag=activeDays.length?Math.round(activeDays.reduce((s,d)=>s+d.g,0)/activeDays.length):0;
+  const al=activeDays.length?Math.round(activeDays.reduce((s,d)=>s+d.l,0)/activeDays.length):0;
+  const maintenance_r=MAINTENANCE[p];
+  const def=maintenance_r-ak;
+  const pp=ak?Math.round(ap*4/ak*100):0;
+  const gp=ak?Math.round(ag*4/ak*100):0;
+  const lp=ak?Math.round(al*9/ak*100):0;
+
+  document.getElementById('resume-card').innerHTML=`
+    <div class="rc-title">Moyennes — jours actifs (${activeDays.length}/7)</div>
+    <div class="rc-grid">
+      <div class="rc-box"><div class="rc-val">${ak}</div><div class="rc-lbl">kcal/j</div></div>
+      <div class="rc-box"><div class="rc-val">${ap}g</div><div class="rc-lbl">protéines</div></div>
+      <div class="rc-box"><div class="rc-val">${ag}g</div><div class="rc-lbl">glucides</div></div>
+      <div class="rc-box"><div class="rc-val">${al}g</div><div class="rc-lbl">lipides</div></div>
+    </div>
+    <div class="macro-bar" style="height:8px;margin-bottom:6px">
+      <div class="mp" style="width:${pp}%"></div>
+      <div class="mg" style="width:${gp}%"></div>
+      <div class="ml" style="width:${lp}%"></div>
+    </div>
+    <div class="macro-leg" style="margin-bottom:12px">
+      <span><span class="mdot" style="background:#40916C"></span>P ${pp}%</span>
+      <span><span class="mdot" style="background:#E9C46A"></span>G ${gp}%</span>
+      <span><span class="mdot" style="background:#E76F51"></span>L ${lp}%</span>
+    </div>
+    <div class="deficit-row">
+      Objectif calories ingérées : <strong>${ak} kcal</strong> · Déficit vs maintenance : <strong>~${def} kcal/j</strong> · ~${def*7} kcal/sem<br>
+      Soit environ <strong>~${(def*7/7700).toFixed(1)} kg/semaine</strong> théorique
+    </div>`;
+}
+
+
+
+function renderBudget(totalCout){
+  const pct = Math.min(100, Math.round(totalCout / BUDGET_MAX * 100));
+  const restant = Math.round((BUDGET_MAX - totalCout) * 100) / 100;
+  const status = totalCout <= BUDGET_MAX * SEUIL_WARN_BUDGET ? 'ok' : totalCout <= BUDGET_MAX ? 'warn' : 'over';
+  const msg = status === 'over'
+    ? `⚠️ Dépassement de ${Math.abs(restant).toFixed(2)} €`
+    : status === 'warn'
+    ? `⚡ Plus que ${restant.toFixed(2)} € disponibles`
+    : `✅ ${restant.toFixed(2)} € disponibles`;
+  document.getElementById('budget-bar-wrap').innerHTML = `
+    <div class="budget-top">
+      <span class="budget-label">Budget semaine</span>
+      <span class="budget-amount ${status}">${totalCout.toFixed(2)} € / ${BUDGET_MAX} €</span>
+    </div>
+    <div class="budget-bar"><div class="budget-fill ${status}" style="width:${pct}%"></div></div>
+    <div class="budget-sub">${msg}</div>`;
+}
+
+// Construire le mapping ingrédient → recettes qui l'utilisent
+function buildIngRecettesMap(w){
+  const map = {};
+  const semaine = semaines[w];
+  JOURS.forEach((jour,di)=>{
+    semaine[di]['f'].forEach((m,mi)=>{
+      if(!isMealActive(w,di,mi)) return;
+      m.ings.forEach(ing=>{
+        const parsed = parseIng(ing);
+        const key = normalizeIngKey(parsed.nom);
+        if(!map[key]) map[key]=[];
+        map[key].push({jour, moment:m.moment, nom:m.nom});
+      });
+    });
+  });
+  return map;
+}
+
+function showRecettesForIng(ingNom, qtyStr, recettes){
+  document.getElementById('recettes-body').innerHTML = `
+    <div class="recettes-ing-title">${ingNom}</div>
+    <div class="recettes-ing-qty">${qtyStr ? 'Total : ' + qtyStr : ''}</div>
+    <div>
+      ${recettes.map(r=>`
+        <div class="recette-line">
+          <div class="recette-jour">${r.jour}</div>
+          <div>
+            <div class="recette-nom">${r.nom}</div>
+            <div class="recette-moment">${r.moment}</div>
+          </div>
+        </div>`).join('')}
+    </div>
+    <button class="btn-close-recettes" onclick="closeRecettesSheet()">Fermer</button>`;
+  document.getElementById('recettes-sheet').classList.add('open');
+  document.body.style.overflow='hidden';
+}
+
+function closeRecettesSheet(e){
+  if(e && document.getElementById('recettes-panel').contains(e.target)) return;
+  document.getElementById('recettes-sheet').classList.remove('open');
+  document.body.style.overflow='';
+}
+
+function setCoutWeek(w){
+  coutWeek=w;
+  document.querySelectorAll('.cwtt').forEach((el,i)=>el.classList.toggle('active',i===w));
+  renderCouts();
+}
+
+function extractIngName(ing){
+  // Extraire le nom de base de l'ingrédient (sans quantité)
+  return ing.replace(/\d+[\d,.]*(g|kg|ml|L|cl|pièces?|boîtes?|cru|min|c\.à\.c)?/gi,'')
+    .replace(/x\d+/gi,'').replace(/\s+/g,' ').trim();
+}
+
+function getPrix(nomIng){
+  // D'abord vérifier si l'utilisateur a modifié ce prix
+  const clean = extractIngName(nomIng).toLowerCase();
+  for(const [k,v] of Object.entries(prixUser)){
+    if(clean.includes(k.toLowerCase())||k.toLowerCase().includes(clean)) return v;
+  }
+  return PRIX_DEFAUT_ING;
+}
+
+function getPrixReel(nomIng, qtyG, qtyPieces){
+  // Calcul basé sur prix/kg × quantité totale hebdomadaire
+  const clean = extractIngName(nomIng).toLowerCase()
+    .replace(/[éèê]/g,'e').replace(/[àâ]/g,'a').replace(/[îï]/g,'i')
+    .replace(/[ôö]/g,'o').replace(/[ûü]/g,'u').replace(/ç/g,'c');
+  
+  // Cas spécial oeufs : prix à la pièce
+  if(clean.includes('oeuf') && qtyPieces > 0){
+    return Math.round(qtyPieces * PRIX_OEUF * 100) / 100;
+  }
+  // Cas spécial thon boîte
+  if(clean.includes('thon') && qtyPieces > 0){
+    return Math.round(qtyPieces * PRIX_THON_BOITE * 100) / 100;
+  }
+  // Cas spécial filets/pièces de poisson
+  if((clean.includes('cabillaud')||clean.includes('saumon')) && qtyPieces > 0 && qtyG === 0){
+    const prixPiece = clean.includes('saumon') ? PRIX_FILET_SAUMON : PRIX_FILET_CABILLAUD; // prix par filet
+    return Math.round(qtyPieces * prixPiece * 100) / 100;
+  }
+  // Cas spécial cuisses poulet à la pièce
+  if(clean.includes('cuisses') && qtyPieces > 0 && qtyG === 0){
+    return Math.round(qtyPieces * PRIX_CUISSE_POULET * 100) / 100;
+  }
+
+  // Chercher dans prixParKg
+  for(const [kw, prixKg] of Object.entries(prixParKg)){
+    if(clean.includes(kw) || kw.includes(clean)){
+      if(qtyG > 0){
+        return Math.round(qtyG / 1000 * prixKg * 100) / 100;
+      } else if(qtyPieces > 0){
+        // Prix à la pièce × nb pièces (ex: filets poisson, cuisses poulet)
+        const prixPiece = prixKg * 0.20; // ~200g par pièce en moyenne
+        return Math.round(qtyPieces * prixPiece * 100) / 100;
+      } else {
+        return Math.round(prixKg * 0.15 * 100) / 100;
+      }
+    }
+  }
+  for(const [k,v] of Object.entries(prixUser)){
+    if(clean.includes(k.toLowerCase().replace(/[éèê]/g,'e').replace(/[àâ]/g,'a'))||
+       k.toLowerCase().replace(/[éèê]/g,'e').includes(clean)) return v;
+  }
+  // Condiments/épices/aromates sans quantité : coût négligeable
+  const condiments = ['ail','oignon','herbe','epice','curry','cumin','curcuma',
+                      'paprika','cannelle','poivre','sel','citron','basilic',
+                      'persil','thym','laurier','gingembre','coriandre','muscade',
+                      'safran','vanille','menthe','origan','romarin'];
+  if(qtyG === 0 && qtyPieces === 0){
+    for(const c of condiments){
+      if(clean.includes(c)) return 0.20; // condiment quasi gratuit
+    }
+  }
+  return PRIX_DEFAUT_ING;
+}
+
+function renderCouts(){
+  const w = coutWeek;
+  const semaine = semaines[w];
+  
+  // Collecter et REGROUPER les ingrédients actifs (même logique que courses)
+  const ingMap = {};
+  JOURS.forEach((_,di)=>{
+    semaine[di]['f'].forEach((m,mi)=>{
+      if(!isMealActive(w,di,mi)) return;
+      const persCout = getMealPersons(w,di,mi); // toujours {a, e}
+      const nbAdultesCout = persCout.a;
+      const nbEnfantsCout = persCout.e;
+      const nbPersons = nbAdultesCout + nbEnfantsCout;
+      const p4 = m.portions === PORTIONS_FAMILLE;
+      m.ings.forEach(ing=>{
+        const parsed = parseIng(ing);
+        if(parsed.nom.length<2) return;
+        const key = normalizeIngKey(parsed.nom);
+        if(!ingMap[key]){
+          ingMap[key]={nom:parsed.nom, totalQty:0, totalPieces:0, unit:parsed.unit, maxPersons:nbPersons};
+        }
+        const facteurTotalC = facteurTablee(nbAdultesCout, nbEnfantsCout);
+        if(parsed.qty>0){
+          ingMap[key].totalQty += parsed.qty * facteurTotalC;
+        }
+        const piecesMatchC = parsed.raw.match(/(\d+)\s*pièces?/i);
+        if(piecesMatchC){
+          ingMap[key].totalPieces += parseInt(piecesMatchC[1]) * facteurTotalC;
+        }
+        ingMap[key].maxPersons = Math.max(ingMap[key].maxPersons, nbPersons);
+      });
+    });
+  });
+
+  // Calculer les coûts — prix réel d'achat sans multiplication artificielle
+  let totalBase = 0;
+  const lignes = [];
+  Object.entries(ingMap).forEach(([key, data])=>{
+    // Utiliser getPrixReel avec la vraie quantité cumulée
+    const qtyG = data.unit === 'g' || data.unit === '' ? data.totalQty : 0;
+    const prixAjuste = Math.max(0.10, getPrixReel(data.nom, qtyG, data.totalPieces||0));
+    totalBase += prixAjuste;
+    const qtyStr = data.totalQty>0?`${Math.ceil(data.totalQty)}${data.unit||''}`:'';
+    lignes.push({ing:data.nom, qtyStr, prix:prixAjuste, prixBase:prixAjuste, persons:data.maxPersons, key});
+  });
+
+  const total = Math.round(totalBase * 100) / 100;
+  const totalHebdo = total;
+  const totalMois = Math.round(total * SEMAINES_PAR_MOIS * 100) / 100;
+  // Nb personnes moyen = moyenne des nb personnes par repas actif
+  let totalPersonsRepas = 0, nbRepasActifs = 0;
+  JOURS.forEach((_,di)=>{
+    semaines[w][di]['f'].forEach((m,mi)=>{
+      if(!isMealActive(w,di,mi)) return;
+      const p = getMealPersons(w,di,mi);
+      totalPersonsRepas += p.a + p.e;
+      nbRepasActifs++;
+    });
+  });
+  const nbPersonsMoyen = nbRepasActifs > 0 ? Math.max(1, Math.round(totalPersonsRepas/nbRepasActifs)) : 3;
+  const parPers = Math.round(total / nbPersonsMoyen * 100) / 100;
+
+  document.getElementById('cout-summary').innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px">
+      <div>
+        <div class="cout-total">${total.toFixed(2)} €</div>
+        <div class="cout-sub">Estimation courses — ${semaineLabels[w]}</div>
+      </div>
+      <div style="font-size:10px;color:var(--muted);text-align:right;line-height:1.6">
+        Prix modifiables<br>ci-dessous
+      </div>
+    </div>
+    <div class="cout-grid">
+      <div class="cout-box"><div class="cout-val">${totalHebdo.toFixed(2)} €</div><div class="cout-lbl">cette semaine</div></div>
+      <div class="cout-box"><div class="cout-val">${totalMois.toFixed(2)} €</div><div class="cout-lbl">estimation/mois</div></div>
+      <div class="cout-box"><div class="cout-val">${parPers.toFixed(2)} €</div><div class="cout-lbl">par personne/sem</div></div>
+      <div class="cout-box"><div class="cout-val">${(total/7).toFixed(2)} €</div><div class="cout-lbl">par jour</div></div>
+    </div>`;
+
+  // Grouper par catégorie
+  const cats = {
+    'Viandes & poissons':[],'Fruits & légumes':[],'Produits laitiers & oeufs':[],
+    'Épicerie & féculents':[],'Oléagineux & condiments':[],'Épices & aromates':[],'Plaisir':[]
+  };
+  const catKw = {
+    'Viandes & poissons':['poulet','boeuf','saumon','cabillaud','thon','dinde','jambon'],
+    'Fruits & légumes':['courgette','carotte','poivron','épinard','brocoli','tomate','salade','oignon','ail','champignon','patate','avocat','banane','citron','haricot','poireau'],
+    'Produits laitiers & oeufs':['oeuf','skyr','yaourt','petit suisse','parmesan','gruyère','tahini','lait'],
+    'Épicerie & féculents':['riz','pâtes','flocon','pois chiche','lentille','tortilla','bouillon','farine','tomates concassées'],
+    'Oléagineux & condiments':['amande','beurre de cacahuète','huile','sauce soja','basilic'],
+    'Épices & aromates':['curry','cumin','curcuma','paprika','cannelle','herbe'],
+    'Plaisir':['chocolat'],
+  };
+
+  lignes.forEach(l=>{
+    const low = l.ing.toLowerCase();
+    let placed = false;
+    for(const [cat,kws] of Object.entries(catKw)){
+      if(kws.some(k=>low.includes(k))){cats[cat].push(l);placed=true;break;}
+    }
+    if(!placed) cats['Épicerie & féculents'].push(l);
+  });
+
+  let html = '';
+  Object.entries(cats).filter(([,arr])=>arr.length>0).forEach(([cat,arr])=>{
+    const catTotal = arr.reduce((s,l)=>s+l.prix,0);
+    html += `<div class="prix-block">
+      <div class="prix-hd"><span>${cat}</span><span style="font-family:var(--mono)">${catTotal.toFixed(2)} €</span></div>`;
+    arr.forEach((l,idx)=>{
+      const safeKey = l.ing.replace(/'/g,"\\'").replace(/"/g,'&quot;');
+      html += `<div class="prix-item">
+        <div class="prix-nom">${l.ing}${l.qtyStr?' <span style="font-size:11px;color:var(--g3);font-weight:500">'+l.qtyStr+'</span>':''}</div>
+        <div class="prix-pers">${l.persons} pers.</div>
+        <div class="prix-input-wrap">
+          <input class="prix-input" type="number" min="0.10" max="50" step="0.10"
+            value="${l.prixBase.toFixed(2)}"
+            onchange="updatePrix('${safeKey}', parseFloat(this.value))"
+            onclick="event.stopPropagation()" />
+          <span class="prix-unit">€</span>
+        </div>
+      </div>`;
+    });
+    html += `<div class="prix-total-row">
+      <span class="prix-total-lbl">Sous-total ${cat}</span>
+      <span class="prix-total-val">${catTotal.toFixed(2)} €</span>
+    </div></div>`;
+  });
+
+  document.getElementById('cout-list').innerHTML = html;
+}
+
+function updatePrix(ingName, newPrix){
+  if(isNaN(newPrix)||newPrix<=0) return;
+  const clean = extractIngName(ingName).toLowerCase();
+  let found = false;
+  for(const k of Object.keys(prixUser)){
+    if(clean.includes(k.toLowerCase())||k.toLowerCase().includes(clean)){
+      prixUser[k] = newPrix;
+      found = true;
+      break;
+    }
+  }
+  if(!found) prixUser[ingName] = newPrix;
+  // Sauvegarder les prix modifiés
+  fbSync.savePrixUser(prixUser);
+  renderCouts();
+  renderCourses();
+}
+
+
+// ── LISTE ANNEXE ─────────────────────────────────────────────
+const annexeDefaut = [
+  {id:1,nom:'Papier toilette',cat:'Hygiène & beauté',done:false},
+  {id:2,nom:'Essuie-tout',cat:'Entretien maison',done:false},
+  {id:3,nom:'Liquide vaisselle',cat:'Entretien maison',done:false},
+  {id:4,nom:'Lessive',cat:'Entretien maison',done:false},
+  {id:5,nom:'Savon mains',cat:'Hygiène & beauté',done:false},
+  {id:6,nom:'Gel douche',cat:'Hygiène & beauté',done:false},
+  {id:7,nom:'Shampooing',cat:'Hygiène & beauté',done:false},
+  {id:8,nom:'Dentifrice',cat:'Hygiène & beauté',done:false},
+  {id:9,nom:'Sacs poubelle',cat:'Entretien maison',done:false},
+  {id:10,nom:'Éponges',cat:'Entretien maison',done:false},
+  {id:11,nom:'Produit WC',cat:'Entretien maison',done:false},
+  {id:12,nom:'Lingettes bébé',cat:'Bébé & enfants',done:false},
+  {id:13,nom:'Couches',cat:'Bébé & enfants',done:false},
+];
+
+let annexeItems = JSON.parse(localStorage.getItem('annexeItems')||'null') || JSON.parse(JSON.stringify(annexeDefaut));
+let annexeNextId = Math.max(...annexeItems.map(i=>i.id), 20) + 1;
+
+function saveAnnexe(){
+  fbSync.saveAnnexe(annexeItems);
+}
+
+function addAnnexeItem(){
+  const input = document.getElementById('annexe-input');
+  const cat = document.getElementById('annexe-cat-select').value;
+  const nom = input.value.trim();
+  if(!nom) return;
+  annexeItems.push({id:annexeNextId++, nom, cat, done:false});
+  input.value='';
+  saveAnnexe();
+  renderAnnexe();
+}
+
+function toggleAnnexeItem(id){
+  const it = annexeItems.find(i=>i.id===id);
+  if(it){ it.done=!it.done; saveAnnexe(); renderAnnexe(); }
+}
+
+function delAnnexeItem(id){
+  annexeItems = annexeItems.filter(i=>i.id!==id);
+  saveAnnexe();
+  renderAnnexe();
+}
+
+function resetAnnexeChecked(){
+  annexeItems.forEach(i=>i.done=false);
+  saveAnnexe();
+  renderAnnexe();
+}
+
+function renderAnnexe(){
+  const total = annexeItems.length;
+  const done = annexeItems.filter(i=>i.done).length;
+  const pct = total ? Math.round(done/total*100) : 0;
+  document.getElementById('annexe-count').textContent = `${total} articles · ${done} cochés`;
+  document.getElementById('annexe-prog').style.width = pct+'%';
+
+  // Grouper par catégorie
+  const cats = {};
+  annexeItems.forEach(it=>{
+    if(!cats[it.cat]) cats[it.cat]=[];
+    cats[it.cat].push(it);
+  });
+
+  const order = ['Hygiène & beauté','Entretien maison','Bébé & enfants','Pharmacie','Papeterie & divers','Animaux'];
+  const sorted = [
+    ...order.filter(c=>cats[c]).map(c=>[c,cats[c]]),
+    ...Object.entries(cats).filter(([c])=>!order.includes(c))
+  ];
+
+  document.getElementById('annexe-list').innerHTML = sorted.map(([cat,items])=>`
+    <div class="annexe-section">
+      <div class="annexe-cat-hd">
+        <span>${cat}</span>
+        <span style="opacity:.7;font-weight:400">${items.filter(i=>i.done).length}/${items.length}</span>
+      </div>
+      <div class="annexe-items">
+        ${items.map(it=>`
+          <div class="annexe-item">
+            <div class="annexe-check${it.done?' done':''}" onclick="toggleAnnexeItem(${it.id})"></div>
+            <span class="annexe-label${it.done?' done':''}" onclick="toggleAnnexeItem(${it.id})">${it.nom}</span>
+            <button class="annexe-del" onclick="delAnnexeItem(${it.id})">×</button>
+          </div>`).join('')}
+      </div>
+    </div>`).join('');
+}
+
+loadChecked();
+renderPlanning();
+renderCourses();
+renderResume();
+
+// ── SERVICE WORKER ───────────────────────────────────────────
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('sw.js')
+      .then(r => console.log('[SW] Enregistré:', r.scope))
+      .catch(e => console.error('[SW] Erreur:', e));
+  });
+}
+</script>
+<script src="firebase-sync.js"></script>
+</body>
+</html>
