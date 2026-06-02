@@ -286,6 +286,23 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);display:flex
 .notif-row{display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-top:1px solid var(--border);margin-top:8px}
 .notif-btn{padding:7px 14px;border:1.5px solid var(--g3);border-radius:var(--rs);font-size:12px;font-weight:600;cursor:pointer;background:var(--g6);color:var(--g1);font-family:var(--font)}
 .notif-btn.on{background:var(--g1);color:white;border-color:var(--g1)}
+
+/* HISTORIQUE */
+.hist-entry{background:var(--white);border-radius:var(--rs);padding:10px 12px;margin-bottom:8px;box-shadow:var(--shadow)}
+.hist-date{font-size:11px;font-weight:700;color:var(--g3);margin-bottom:5px;text-transform:uppercase;letter-spacing:.06em}
+.hist-noms{display:flex;flex-wrap:wrap;gap:4px}
+.hist-nom{font-size:11px;padding:2px 8px;background:var(--g6);border:1px solid var(--border);border-radius:20px;color:var(--text)}
+
+/* GÉNÉRATION AUTO */
+.gen-token-row{display:flex;gap:8px;margin:8px 0 10px}
+.gen-token-row input{flex:1;padding:7px 10px;border:1.5px solid var(--border);border-radius:var(--rs);font-size:12px;font-family:monospace;color:var(--g1);background:var(--white)}
+.gen-trigger-btn{width:100%;padding:12px;background:var(--g1);color:white;border:none;border-radius:var(--rs);font-size:14px;font-weight:600;cursor:pointer;font-family:var(--font);transition:opacity .2s}
+.gen-trigger-btn:hover{opacity:.9}
+.gen-trigger-btn:disabled{opacity:.4;cursor:not-allowed}
+.gen-status{font-size:12px;padding:8px 10px;border-radius:var(--rs);margin-top:8px;display:none;line-height:1.5}
+.gen-status.ok{background:var(--g5);color:var(--g1);display:block}
+.gen-status.err{background:var(--red-l);color:var(--red);display:block}
+.gen-status.info{background:var(--amber-l);color:#856404;display:block}
 </style>
 </head>
 <body>
@@ -465,6 +482,21 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);display:flex
       <div class="hab-chip"><div class="hab-name">Riz complet / basmati</div><div class="hab-val">IG bas à modéré · fibres</div></div>
       <div class="hab-chip"><div class="hab-name">Pâtes complètes</div><div class="hab-val">IG bas · satiété durable</div></div>
     </div>
+  </div>
+
+  <div class="info-block">
+    <div class="info-t">🤖 Génération automatique</div>
+    <div class="info-txt" style="margin-bottom:8px">Déclenche GitHub Actions pour générer la semaine suivante via IA (Groq — gratuit).<br>Nécessite le secret <code style="background:#F3F4F6;padding:1px 4px;border-radius:3px;font-size:11px">GROQ_API_KEY</code> dans le repo GitHub.</div>
+    <div class="gen-token-row">
+      <input type="password" id="gen-token-input" placeholder="Token GitHub (ghp_…)" oninput="localStorage.setItem('_gh_token',this.value)">
+    </div>
+    <button class="gen-trigger-btn" id="gen-trigger-btn" onclick="triggerGeneration()">🚀 Générer la semaine prochaine</button>
+    <div class="gen-status" id="gen-status"></div>
+  </div>
+
+  <div class="info-block">
+    <div class="info-t">📚 Historique des semaines</div>
+    <div id="hist-container"><div style="font-size:12px;color:var(--muted);padding:4px 0">Chargement…</div></div>
   </div>
 </div>
 
@@ -773,6 +805,10 @@ try{
   if(savedCM) customMeals = JSON.parse(savedCM);
 }catch(e){}
 
+// ── Historique ────────────────────────────────────────────────
+let historique = [];
+try { historique = JSON.parse(localStorage.getItem('_historique') || '[]'); } catch(e) {}
+
 function getCustomMeal(w,di,mi){
   return (customMeals[w]&&customMeals[w][di]&&customMeals[w][di][mi])||null;
 }
@@ -897,24 +933,37 @@ function toggleNotifications(){
 function scheduleCoursesNotif(){
   const now=new Date();
   const nextSat=new Date(now);
-  const day=now.getDay(); // 0=dim, 6=sam
+  const day=now.getDay();
   const daysUntilSat=(6-day+7)%7||7;
   nextSat.setDate(now.getDate()+daysUntilSat);
   nextSat.setHours(9,0,0,0);
   const ms=nextSat-now;
   if(ms>0&&ms<7*24*3600*1000){
     setTimeout(()=>{
-      new Notification('🛒 Courses du weekend',{body:'N\'oubliez pas votre liste de courses !',icon:'icon.svg'});
+      new Notification('🛒 Courses du weekend',{body:"N'oubliez pas votre liste de courses !",icon:'icon.svg'});
     },ms);
   }
+  // Periodic sync (Chrome Android — app fermée)
+  if('serviceWorker' in navigator){
+    navigator.serviceWorker.ready.then(reg=>{
+      if('periodicSync' in reg){
+        reg.periodicSync.register('courses-reminder',{minInterval:6*24*60*60*1000}).catch(()=>{});
+      }
+      reg.active?.postMessage({type:'SCHEDULE_NOTIF',nextSat:nextSat.getTime()});
+    }).catch(()=>{});
+  }
 }
-// Restaurer état notification au chargement
+// Restaurer état au chargement
 window.addEventListener('load',()=>{
   if(localStorage.getItem('notifEnabled')==='1'&&Notification.permission==='granted'){
     const btn=document.getElementById('notif-btn');
     if(btn){btn.classList.add('on');btn.textContent='Activé ✓';}
     scheduleCoursesNotif();
   }
+  const tokenInput=document.getElementById('gen-token-input');
+  if(tokenInput) tokenInput.value=localStorage.getItem('_gh_token')||'';
+  checkAndSaveHistorique();
+  renderHistoriqueInfos();
 });
 function switchWeek(d){currentWeek=Math.max(0,Math.min(1,currentWeek+d));renderPlanning();}
 function switchWeekResume(d){currentWeekResume=Math.max(0,Math.min(1,currentWeekResume+d));renderResume();}
@@ -1993,6 +2042,75 @@ function renderAnnexe(){
           </div>`).join('')}
       </div>
     </div>`).join('');
+}
+
+// ── HISTORIQUE ────────────────────────────────────────────────
+function checkAndSaveHistorique(){
+  const key=semaines[0]?.[1]?.f?.[1]?.nom||'';
+  if(!key||key===localStorage.getItem('_hist_key')) return;
+  const noms=[...new Set(semaines[0].flatMap(d=>[...d.f,...d.m].map(m=>m.nom)))];
+  const today=new Date();
+  const entry={
+    date:today.toISOString().slice(0,10),
+    label:today.toLocaleDateString('fr-FR',{day:'numeric',month:'long',year:'numeric'}),
+    noms
+  };
+  historique=[entry,...historique.filter(h=>h.date!==entry.date)].slice(0,8);
+  localStorage.setItem('_historique',JSON.stringify(historique));
+  localStorage.setItem('_hist_key',key);
+  fbSync.saveHistorique&&fbSync.saveHistorique(entry);
+  renderHistoriqueInfos();
+}
+
+function renderHistoriqueInfos(){
+  const el=document.getElementById('hist-container');
+  if(!el) return;
+  if(!historique.length){
+    el.innerHTML='<div style="font-size:12px;color:var(--muted);padding:4px 0">Aucun historique — se remplit automatiquement chaque semaine.</div>';
+    return;
+  }
+  el.innerHTML=historique.slice(0,4).map(h=>`
+    <div class="hist-entry">
+      <div class="hist-date">${h.label||h.date}</div>
+      <div class="hist-noms">${(h.noms||[]).map(n=>`<span class="hist-nom">${n}</span>`).join('')}</div>
+    </div>`).join('');
+}
+
+// ── GÉNÉRATION AUTO ───────────────────────────────────────────
+async function triggerGeneration(){
+  const token=localStorage.getItem('_gh_token')||'';
+  const btn=document.getElementById('gen-trigger-btn');
+  if(!token){_showGenStatus('Entrer le token GitHub ci-dessus.','err');return;}
+  btn.disabled=true;
+  _showGenStatus('⏳ Déclenchement en cours…','info');
+  try{
+    const r=await fetch('https://api.github.com/repos/paloumpa/menu/actions/workflows/generate-menus.yml/dispatches',{
+      method:'POST',
+      headers:{
+        'Authorization':'Bearer '+token,
+        'Accept':'application/vnd.github+json',
+        'X-GitHub-Api-Version':'2022-11-28',
+        'Content-Type':'application/json'
+      },
+      body:JSON.stringify({ref:'main'})
+    });
+    if(r.status===204){
+      _showGenStatus('✅ Génération lancée ! Les menus seront mis à jour dans ~2 minutes.','ok');
+    } else {
+      const d=await r.json().catch(()=>({}));
+      throw new Error(d.message||'HTTP '+r.status);
+    }
+  }catch(e){
+    _showGenStatus('❌ '+e.message,'err');
+  }finally{
+    btn.disabled=false;
+  }
+}
+function _showGenStatus(msg,cls){
+  const el=document.getElementById('gen-status');
+  if(!el) return;
+  el.textContent=msg;
+  el.className='gen-status '+cls;
 }
 
 loadChecked();
