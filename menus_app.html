@@ -266,6 +266,26 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);display:flex
 .ing-rep-nom{color:var(--text)}
 .ing-rep-qty{font-weight:600;font-family:var(--mono);color:var(--g1)}
 .ing-rep-box{background:var(--white);border-radius:var(--rs);border:1px solid var(--border);overflow:hidden;margin-bottom:8px}
+
+/* REPAS MANUEL */
+.meal-edit-btn{margin-left:auto;width:20px;height:20px;border-radius:50%;border:1px solid var(--border);background:white;cursor:pointer;font-size:10px;display:flex;align-items:center;justify-content:center;color:var(--muted);flex-shrink:0;line-height:1;font-family:var(--font)}
+.meal-edit-btn:active{background:var(--g5)}
+.meal-custom-badge{display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--amber);margin-left:4px;vertical-align:middle;flex-shrink:0}
+
+/* MACROS PROGRESSION */
+.macro-prog-row{margin-bottom:10px}
+.macro-prog-label{display:flex;justify-content:space-between;font-size:12px;color:var(--text);margin-bottom:4px;font-weight:500}
+.macro-prog-bar{height:9px;background:var(--border);border-radius:5px;overflow:hidden}
+.macro-prog-fill{height:100%;border-radius:5px;transition:width .4s}
+.macro-prog-fill.elle{background:#6B8FF0}
+.macro-prog-fill.lui{background:var(--g3)}
+.macro-prog-fill.over{background:var(--red)}
+.macro-prog-sub{font-size:10px;color:var(--muted);margin-top:2px;text-align:right}
+
+/* NOTIFICATIONS */
+.notif-row{display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-top:1px solid var(--border);margin-top:8px}
+.notif-btn{padding:7px 14px;border:1.5px solid var(--g3);border-radius:var(--rs);font-size:12px;font-weight:600;cursor:pointer;background:var(--g6);color:var(--g1);font-family:var(--font)}
+.notif-btn.on{background:var(--g1);color:white;border-color:var(--g1)}
 </style>
 </head>
 <body>
@@ -290,6 +310,10 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);display:flex
     <button class="ws-btn" onclick="switchWeek(-1)">‹</button>
     <div class="ws-label" id="ws-label">Semaine en cours<br><span class="ws-sub" id="ws-sub"></span></div>
     <button class="ws-btn" onclick="switchWeek(1)">›</button>
+  </div>
+  <div class="ptoggle" id="ptoggle-planning">
+    <button class="ptog active" onclick="setPerson('f')">👩 Elle</button>
+    <button class="ptog" onclick="setPerson('m')">👨 Lui</button>
   </div>
   <div class="stats">
     <div class="stat"><div class="stat-n" id="s-actifs">—</div><div class="stat-l">repas actifs</div></div>
@@ -319,6 +343,10 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);display:flex
     <button class="ws-btn" onclick="switchWeekResume(-1)">‹</button>
     <div class="ws-label" id="ws-label-resume">Semaine en cours</div>
     <button class="ws-btn" onclick="switchWeekResume(1)">›</button>
+  </div>
+  <div class="ptoggle" id="ptoggle-resume" style="margin-bottom:12px">
+    <button class="ptog active" onclick="setPersonResume('f')">👩 Elle</button>
+    <button class="ptog" onclick="setPersonResume('m')">👨 Lui</button>
   </div>
   <div class="wo-grid" id="wo-grid"></div>
   <div class="resume-card" id="resume-card"></div>
@@ -417,6 +445,10 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);display:flex
       <span class="pref-chip">☐ Budget ≤ 80€</span>
       <span class="pref-chip">☐ Aucun poisson le soir</span>
       <span class="pref-chip">☐ Repas semaine &lt; 20 min</span>
+      <div class="notif-row">
+        <span style="font-size:13px;color:var(--g1);font-weight:500">🔔 Rappel courses samedi 9h</span>
+        <button class="notif-btn" id="notif-btn" onclick="toggleNotifications()">Activer</button>
+      </div>
     </div>
   </div>
   <div class="info-block">
@@ -473,6 +505,7 @@ let fbSync = {
   saveChecked:     d => { try{localStorage.setItem('coursesChecked',JSON.stringify(d));}catch(e){} },
   savePrixUser:    d => { try{localStorage.setItem('prixUser',JSON.stringify(d));}catch(e){} },
   saveAnnexe:      d => { try{localStorage.setItem('annexeItems',JSON.stringify(d));}catch(e){} },
+  saveCustomMeals: d => { try{localStorage.setItem('customMeals',JSON.stringify(d));}catch(e){} },
 };
 const TARGETS={f:1520,m:1720};
 const MAINTENANCE={f:1700,m:1900};
@@ -733,6 +766,25 @@ try{
   if(savedMP) mealPersons = JSON.parse(savedMP);
 }catch(e){}
 
+// ── Repas personnalisés ───────────────────────────────────────
+let customMeals = {0:{},1:{}};
+try{
+  const savedCM = localStorage.getItem('customMeals');
+  if(savedCM) customMeals = JSON.parse(savedCM);
+}catch(e){}
+
+function getCustomMeal(w,di,mi){
+  return (customMeals[w]&&customMeals[w][di]&&customMeals[w][di][mi])||null;
+}
+function getMealData(w,di,p,mi){
+  const custom=getCustomMeal(w,di,mi);
+  if(!custom) return semaines[w][di][p][mi];
+  return Object.assign({},semaines[w][di][p][mi],custom);
+}
+function saveCustomMealsState(){
+  fbSync.saveCustomMeals(customMeals);
+}
+
 function getMealPersons(w,di,mi){
   const v = mealPersons[w]&&mealPersons[w][di]&&mealPersons[w][di][mi];
   // Compatibilité ancien format (nombre simple)
@@ -817,8 +869,53 @@ function switchTab(t){
   if(t==='annexe') renderAnnexe();
 }
 
-function setPerson(p){person=p;document.querySelectorAll('#tab-planning .ptog').forEach((el,i)=>el.classList.toggle('active',['f','m'][i]===p));renderPlanning();}
-function setPersonResume(p){personResume=p;document.querySelectorAll('#tab-resume .ptog').forEach((el,i)=>el.classList.toggle('active',['f','m'][i]===p));renderResume();}
+function setPerson(p){person=p;document.querySelectorAll('#ptoggle-planning .ptog').forEach((el,i)=>el.classList.toggle('active',['f','m'][i]===p));renderPlanning();}
+function setPersonResume(p){personResume=p;document.querySelectorAll('#ptoggle-resume .ptog').forEach((el,i)=>el.classList.toggle('active',['f','m'][i]===p));renderResume();}
+
+// ── NOTIFICATIONS ─────────────────────────────────────────────
+function toggleNotifications(){
+  const btn=document.getElementById('notif-btn');
+  if(!('Notification' in window)){
+    alert('Votre navigateur ne supporte pas les notifications.');
+    return;
+  }
+  if(Notification.permission==='granted'&&btn.classList.contains('on')){
+    btn.classList.remove('on');
+    btn.textContent='Activer';
+    localStorage.setItem('notifEnabled','0');
+    return;
+  }
+  Notification.requestPermission().then(perm=>{
+    if(perm==='granted'){
+      btn.classList.add('on');
+      btn.textContent='Activé ✓';
+      localStorage.setItem('notifEnabled','1');
+      scheduleCoursesNotif();
+    }
+  });
+}
+function scheduleCoursesNotif(){
+  const now=new Date();
+  const nextSat=new Date(now);
+  const day=now.getDay(); // 0=dim, 6=sam
+  const daysUntilSat=(6-day+7)%7||7;
+  nextSat.setDate(now.getDate()+daysUntilSat);
+  nextSat.setHours(9,0,0,0);
+  const ms=nextSat-now;
+  if(ms>0&&ms<7*24*3600*1000){
+    setTimeout(()=>{
+      new Notification('🛒 Courses du weekend',{body:'N\'oubliez pas votre liste de courses !',icon:'icon.svg'});
+    },ms);
+  }
+}
+// Restaurer état notification au chargement
+window.addEventListener('load',()=>{
+  if(localStorage.getItem('notifEnabled')==='1'&&Notification.permission==='granted'){
+    const btn=document.getElementById('notif-btn');
+    if(btn){btn.classList.add('on');btn.textContent='Activé ✓';}
+    scheduleCoursesNotif();
+  }
+});
 function switchWeek(d){currentWeek=Math.max(0,Math.min(1,currentWeek+d));renderPlanning();}
 function switchWeekResume(d){currentWeekResume=Math.max(0,Math.min(1,currentWeekResume+d));renderResume();}
 function setCourseWeek(w){courseWeek=w;document.querySelectorAll('.cwt').forEach((el,i)=>el.classList.toggle('active',i===w));renderCourses();}
@@ -853,14 +950,17 @@ function renderPlanning(){
         <span>${j}</span>
         <span class="day-kcal">${dayKcal}</span>
       </div>
-      ${meals.map((m,mi)=>{
+      ${meals.map((mBase,mi)=>{
+        const m=getMealData(w,di,person,mi);
+        const custom=getCustomMeal(w,di,mi);
         const on=isMealActive(w,di,mi);
         return `<div class="meal-slot${on?'':' disabled-meal'}">
           <div class="meal-toggle-row">
             <div class="meal-active-btn${on?' on':''}" onclick="toggleMeal(${w},${di},${mi})"></div>
             <span class="mbadge ${MB[m.moment]||'mb-pdj'}">${m.moment}</span>
+            <button class="meal-edit-btn" onclick="event.stopPropagation();editMeal(${w},${di},${mi})">✏</button>
           </div>
-          <div class="meal-nm" onclick="showDetail(${w},${di},${mi})">${m.nom}</div>
+          <div class="meal-nm" onclick="showDetail(${w},${di},${mi})">${m.nom}${custom?'<span class="meal-custom-badge"></span>':''}</div>
           <div class="meal-tm">${m.kcal} kcal</div>
           <div class="persons-selector">
             <div class="ps-row">
@@ -1137,6 +1237,83 @@ function closeDetail(e){
   document.body.style.overflow='';
 }
 
+// ── REPAS MANUEL ──────────────────────────────────────────────
+function editMeal(w,di,mi){
+  const mBase=semaines[w][di]['f'][mi];
+  const custom=getCustomMeal(w,di,mi)||{};
+  const nom=custom.nom||mBase.nom;
+  const kcal=custom.kcal||mBase.kcal;
+  const p=custom.p||mBase.p;
+  const g=custom.g||mBase.g;
+  const l=custom.l||mBase.l;
+  const note=custom.note!==undefined?custom.note:mBase.note;
+  const isCustom=!!custom.nom;
+  document.getElementById('edit-sheet-body').innerHTML=`
+    <div class="sheet-title" style="font-size:16px">✏️ Modifier le repas</div>
+    <div class="sheet-meta">
+      <span class="pill pill-a">${JOURS[di]} · ${mBase.moment}</span>
+      ${isCustom?'<span class="pill" style="background:var(--amber-l);color:#856404">Modifié</span>':''}
+    </div>
+    <div style="display:flex;flex-direction:column;gap:12px;margin-top:10px">
+      <div>
+        <div class="slabel">Nom du repas</div>
+        <input id="edit-nom" type="text" value="${nom.replace(/"/g,'&quot;')}" style="width:100%;padding:10px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;font-family:var(--font)">
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px">
+        <div><div class="slabel">kcal</div><input id="edit-kcal" type="number" value="${kcal}" style="width:100%;padding:8px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;text-align:center"></div>
+        <div><div class="slabel">P (g)</div><input id="edit-p" type="number" value="${p}" style="width:100%;padding:8px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;text-align:center"></div>
+        <div><div class="slabel">G (g)</div><input id="edit-g" type="number" value="${g}" style="width:100%;padding:8px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;text-align:center"></div>
+        <div><div class="slabel">L (g)</div><input id="edit-l" type="number" value="${l}" style="width:100%;padding:8px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;text-align:center"></div>
+      </div>
+      <div>
+        <div class="slabel">Note (optionnel)</div>
+        <input id="edit-note" type="text" value="${note.replace(/"/g,'&quot;')}" placeholder="ex : Restes, restaurant…" style="width:100%;padding:8px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-family:var(--font)">
+      </div>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:16px">
+      ${isCustom?`<button onclick="resetMeal(${w},${di},${mi})" style="flex:0 0 auto;padding:12px 14px;border:1.5px solid #FECACA;border-radius:10px;font-size:13px;cursor:pointer;background:var(--red-l);color:var(--red);font-family:var(--font)">Réinitialiser</button>`:''}
+      <button onclick="saveMealEdit(${w},${di},${mi})" style="flex:1;padding:13px;background:var(--g1);color:white;border:none;border-radius:10px;font-size:15px;font-weight:600;cursor:pointer;font-family:var(--font)">Enregistrer</button>
+    </div>
+    <button class="btn-close" onclick="closeEditMeal()" style="margin-top:8px;background:transparent;color:var(--muted);border:1.5px solid var(--border)">Annuler</button>`;
+  document.getElementById('edit-overlay').classList.add('open');
+  document.body.style.overflow='hidden';
+}
+
+function saveMealEdit(w,di,mi){
+  const nom=document.getElementById('edit-nom').value.trim();
+  const kcal=parseInt(document.getElementById('edit-kcal').value)||0;
+  const p=parseInt(document.getElementById('edit-p').value)||0;
+  const g=parseInt(document.getElementById('edit-g').value)||0;
+  const l=parseInt(document.getElementById('edit-l').value)||0;
+  const note=document.getElementById('edit-note').value.trim();
+  if(!nom) return;
+  if(!customMeals[w]) customMeals[w]={};
+  if(!customMeals[w][di]) customMeals[w][di]={};
+  customMeals[w][di][mi]={nom,kcal,p,g,l,note};
+  saveCustomMealsState();
+  closeEditMeal();
+  renderPlanning();
+  renderCourses();
+  renderResume();
+}
+
+function resetMeal(w,di,mi){
+  if(customMeals[w]&&customMeals[w][di]&&customMeals[w][di][mi]){
+    delete customMeals[w][di][mi];
+    saveCustomMealsState();
+    closeEditMeal();
+    renderPlanning();
+    renderCourses();
+    renderResume();
+  }
+}
+
+function closeEditMeal(e){
+  if(e&&document.getElementById('edit-sheet').contains(e.target)) return;
+  document.getElementById('edit-overlay').classList.remove('open');
+  document.body.style.overflow='';
+}
+
 // ── COURSES ──────────────────────────────────────────────────
 // ── Parsing ingrédient : extraire nom de base + quantité + unité ──
 function parseIng(ing){
@@ -1345,36 +1522,73 @@ function renderResume(){
   const w=currentWeekResume;
   const p=personResume;
   const semaine=semaines[w];
-  const target=TARGETS[p];
   document.getElementById('ws-label-resume').textContent=semaineLabels[w];
 
-  const wd=semaine.map((d,di)=>({
-    j:JOURS[di],
-    k:d[p].reduce((s,m,mi)=>isMealActive(w,di,mi)?s+m.kcal:s,0),
-    pt:d[p].reduce((s,m,mi)=>isMealActive(w,di,mi)?s+m.p:s,0),
-    g:d[p].reduce((s,m,mi)=>isMealActive(w,di,mi)?s+m.g:s,0),
-    l:d[p].reduce((s,m,mi)=>isMealActive(w,di,mi)?s+m.l:s,0),
-    active:isDayActive(w,di)
-  }));
+  // Calcul pour un profil donné
+  function profileStats(pk){
+    const days=semaine.map((d,di)=>({
+      k:d[pk].reduce((s,m,mi)=>isMealActive(w,di,mi)?s+getMealData(w,di,pk,mi).kcal:s,0),
+      pt:d[pk].reduce((s,m,mi)=>isMealActive(w,di,mi)?s+getMealData(w,di,pk,mi).p:s,0),
+      g:d[pk].reduce((s,m,mi)=>isMealActive(w,di,mi)?s+getMealData(w,di,pk,mi).g:s,0),
+      l:d[pk].reduce((s,m,mi)=>isMealActive(w,di,mi)?s+getMealData(w,di,pk,mi).l:s,0),
+      active:isDayActive(w,di)
+    }));
+    const active=days.filter(d=>d.active&&d.k>0);
+    const ak=active.length?Math.round(active.reduce((s,d)=>s+d.k,0)/active.length):0;
+    const ap=active.length?Math.round(active.reduce((s,d)=>s+d.pt,0)/active.length):0;
+    const ag=active.length?Math.round(active.reduce((s,d)=>s+d.g,0)/active.length):0;
+    const al=active.length?Math.round(active.reduce((s,d)=>s+d.l,0)/active.length):0;
+    return {days,active,ak,ap,ag,al};
+  }
+
+  const statP=profileStats(p);
+  const {days:wd,active:activeDays,ak,ap,ag,al}=statP;
 
   const mk=Math.max(...wd.map(d=>d.k),1);
   document.getElementById('wo-grid').innerHTML=wd.map(d=>`
     <div class="wo-col${d.active?'':' off'}">
-      <div class="wo-day">${d.j.slice(0,3)}</div>
+      <div class="wo-day">${d.j||d}</div>
       <div class="wo-kcal">${d.k}</div>
       <div class="wo-bar" style="width:${Math.round(d.k/mk*100)}%;max-width:100%"></div>
     </div>`).join('');
 
-  const activeDays=wd.filter(d=>d.active&&d.k>0);
-  const ak=activeDays.length?Math.round(activeDays.reduce((s,d)=>s+d.k,0)/activeDays.length):0;
-  const ap=activeDays.length?Math.round(activeDays.reduce((s,d)=>s+d.pt,0)/activeDays.length):0;
-  const ag=activeDays.length?Math.round(activeDays.reduce((s,d)=>s+d.g,0)/activeDays.length):0;
-  const al=activeDays.length?Math.round(activeDays.reduce((s,d)=>s+d.l,0)/activeDays.length):0;
+  // Grille wd n'a pas de .j — reconstruire avec JOURS
+  const wdFull=semaine.map((d,di)=>({
+    j:JOURS[di],
+    k:d[p].reduce((s,m,mi)=>isMealActive(w,di,mi)?s+getMealData(w,di,p,mi).kcal:s,0),
+    active:isDayActive(w,di)
+  }));
+  const mk2=Math.max(...wdFull.map(d=>d.k),1);
+  document.getElementById('wo-grid').innerHTML=wdFull.map(d=>`
+    <div class="wo-col${d.active?'':' off'}">
+      <div class="wo-day">${d.j.slice(0,3)}</div>
+      <div class="wo-kcal">${d.k}</div>
+      <div class="wo-bar" style="width:${Math.round(d.k/mk2*100)}%;max-width:100%"></div>
+    </div>`).join('');
+
+  const target=TARGETS[p];
   const maintenance_r=MAINTENANCE[p];
   const def=maintenance_r-ak;
   const pp=ak?Math.round(ap*4/ak*100):0;
   const gp=ak?Math.round(ag*4/ak*100):0;
   const lp=ak?Math.round(al*9/ak*100):0;
+
+  // Barres de progression vs objectif pour les deux profils
+  const statF=profileStats('f'), statM=profileStats('m');
+  function progBar(label,cssClass,actual,target2){
+    const pct=Math.min(100,Math.round(actual/target2*100));
+    const over=actual>target2;
+    const color=over?'over':cssClass;
+    const diff=actual-target2;
+    return `<div class="macro-prog-row">
+      <div class="macro-prog-label">
+        <span>${label}</span>
+        <span style="font-family:var(--mono);font-weight:700;color:${over?'var(--red)':'var(--g1)'}">${actual} <span style="color:var(--muted);font-weight:400">/ ${target2} kcal</span></span>
+      </div>
+      <div class="macro-prog-bar"><div class="macro-prog-fill ${color}" style="width:${pct}%"></div></div>
+      <div class="macro-prog-sub">${pct}% · ${diff>0?'+':''}${diff} kcal vs objectif</div>
+    </div>`;
+  }
 
   document.getElementById('resume-card').innerHTML=`
     <div class="rc-title">Moyennes — jours actifs (${activeDays.length}/7)</div>
@@ -1389,14 +1603,17 @@ function renderResume(){
       <div class="mg" style="width:${gp}%"></div>
       <div class="ml" style="width:${lp}%"></div>
     </div>
-    <div class="macro-leg" style="margin-bottom:12px">
+    <div class="macro-leg" style="margin-bottom:14px">
       <span><span class="mdot" style="background:#40916C"></span>P ${pp}%</span>
       <span><span class="mdot" style="background:#E9C46A"></span>G ${gp}%</span>
       <span><span class="mdot" style="background:#E76F51"></span>L ${lp}%</span>
     </div>
-    <div class="deficit-row">
-      Objectif calories ingérées : <strong>${ak} kcal</strong> · Déficit vs maintenance : <strong>~${def} kcal/j</strong> · ~${def*7} kcal/sem<br>
-      Soit environ <strong>~${(def*7/7700).toFixed(1)} kg/semaine</strong> théorique
+    <div class="rc-title" style="margin-bottom:8px">Objectifs caloriques</div>
+    ${progBar('👩 Elle',  'elle', statF.ak, TARGETS.f)}
+    ${progBar('👨 Lui',   'lui',  statM.ak, TARGETS.m)}
+    <div class="deficit-row" style="margin-top:10px">
+      Déficit moyen : <strong>${p==='f'?'Elle':'Lui'} ~${def} kcal/j</strong> · ~${def*7} kcal/sem<br>
+      Perte théorique : <strong>~${(def*7/7700).toFixed(2)} kg/semaine</strong>
     </div>`;
 }
 
@@ -1792,6 +2009,13 @@ if ('serviceWorker' in navigator) {
   });
 }
 </script>
+<div class="overlay" id="edit-overlay" onclick="closeEditMeal(event)">
+  <div class="sheet" id="edit-sheet">
+    <div class="sheet-handle"></div>
+    <div class="sheet-body" id="edit-sheet-body"></div>
+  </div>
+</div>
+
 <script src="firebase-sync.js"></script>
 </body>
 </html>
