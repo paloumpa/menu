@@ -5,12 +5,12 @@
 (function () {
 
   firebase.initializeApp({
-    apiKey: "AIzaSyBbt2R_8VGeVlQNczOSnnd82OOjyUUDfZ4",
-    authDomain: "menus-famille-7fcdb.firebaseapp.com",
-    projectId: "menus-famille-7fcdb",
-    storageBucket: "menus-famille-7fcdb.firebasestorage.app",
-    messagingSenderId: "724347903790",
-    appId: "1:724347903790:web:454421a924092d2a3ee4bf"
+    apiKey: "AIzaSyAO_ySwaNvN9WDbeYjl-i1Ay9bc4_1nLbU",
+    authDomain: "menu-v2-1833b.firebaseapp.com",
+    projectId: "menu-v2-1833b",
+    storageBucket: "menu-v2-1833b.firebasestorage.app",
+    messagingSenderId: "1096544907617",
+    appId: "1:1096544907617:web:138b49eb1637d2f30a9520"
   });
 
   const _db = firebase.firestore();
